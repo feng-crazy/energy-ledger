@@ -1,0 +1,409 @@
+// Storage Layer using SQLite (native) and AsyncStorage (web fallback)
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import { Vision, EnergyRecord, Commitment, UserStats, AppState } from '@/types';
+
+const DB_NAME = 'energy_ledger.db';
+
+// Check if we're on web platform
+const isWeb = Platform.OS === 'web';
+
+// SQLite import (only used on native)
+let SQLite: typeof import('expo-sqlite') | null = null;
+if (!isWeb) {
+  SQLite = require('expo-sqlite');
+}
+
+let db: any = null;
+
+// Initialize database
+export async function initDatabase(): Promise<void> {
+  if (isWeb) {
+    // Web: use AsyncStorage, no initialization needed
+    return;
+  }
+  
+  // Native: use SQLite
+  db = await SQLite!.openDatabaseAsync(DB_NAME);
+  
+  await db.execAsync(`
+    PRAGMA journal_mode = WAL;
+    
+    CREATE TABLE IF NOT EXISTS visions (
+      id TEXT PRIMARY KEY,
+      emoji TEXT NOT NULL,
+      label TEXT NOT NULL,
+      desc TEXT NOT NULL,
+      detail TEXT,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL
+    );
+    
+    CREATE TABLE IF NOT EXISTS records (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      bodyStateId TEXT NOT NULL,
+      customBodyState TEXT,
+      visions TEXT NOT NULL,
+      journal TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      createdAt INTEGER NOT NULL,
+      hasAiReport INTEGER NOT NULL DEFAULT 0,
+      aiReport TEXT
+    );
+    
+    CREATE TABLE IF NOT EXISTS commitments (
+      id TEXT PRIMARY KEY,
+      content TEXT NOT NULL,
+      visionId TEXT NOT NULL,
+      timeOption TEXT NOT NULL,
+      deadline INTEGER NOT NULL,
+      createdAt INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      failReason TEXT,
+      failTag TEXT
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_records_createdAt ON records(createdAt);
+    CREATE INDEX IF NOT EXISTS idx_commitments_status ON commitments(status);
+  `);
+}
+
+// ==================== Utility Functions ====================
+
+function generateId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+// ==================== Vision CRUD ====================
+
+export async function getVisions(): Promise<Vision[]> {
+  if (isWeb) {
+    const data = await AsyncStorage.getItem('visions');
+    return data ? JSON.parse(data) : [];
+  }
+  
+  if (!db) await initDatabase();
+  const result = await db.getAllAsync<Vision>('SELECT * FROM visions ORDER BY createdAt DESC');
+  return result;
+}
+
+export async function addVision(vision: Omit<Vision, 'id' | 'createdAt' | 'updatedAt'>): Promise<Vision> {
+  const now = Date.now();
+  const newVision: Vision = {
+    ...vision,
+    id: generateId(),
+    createdAt: now,
+    updatedAt: now,
+  };
+  
+  if (isWeb) {
+    const visions = await getVisions();
+    visions.unshift(newVision);
+    await AsyncStorage.setItem('visions', JSON.stringify(visions));
+    return newVision;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync(
+    'INSERT INTO visions (id, emoji, label, desc, detail, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [newVision.id, newVision.emoji, newVision.label, newVision.desc, newVision.detail || null, newVision.createdAt, newVision.updatedAt]
+  );
+  
+  return newVision;
+}
+
+export async function updateVision(id: string, updates: Partial<Vision>): Promise<void> {
+  if (isWeb) {
+    const visions = await getVisions();
+    const index = visions.findIndex(v => v.id === id);
+    if (index !== -1) {
+      visions[index] = { ...visions[index], ...updates, updatedAt: Date.now() };
+      await AsyncStorage.setItem('visions', JSON.stringify(visions));
+    }
+    return;
+  }
+  
+  if (!db) await initDatabase();
+  const now = Date.now();
+  
+  if (updates.detail !== undefined) {
+    await db.runAsync(
+      'UPDATE visions SET detail = ?, updatedAt = ? WHERE id = ?',
+      [updates.detail, now, id]
+    );
+  }
+}
+
+export async function deleteVision(id: string): Promise<void> {
+  if (isWeb) {
+    const visions = await getVisions();
+    const filtered = visions.filter(v => v.id !== id);
+    await AsyncStorage.setItem('visions', JSON.stringify(filtered));
+    return;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync('DELETE FROM visions WHERE id = ?', [id]);
+}
+
+// ==================== Energy Record CRUD ====================
+
+export async function getRecords(limit?: number): Promise<EnergyRecord[]> {
+  if (isWeb) {
+    const data = await AsyncStorage.getItem('records');
+    let records: EnergyRecord[] = data ? JSON.parse(data) : [];
+    if (limit) records = records.slice(0, limit);
+    return records;
+  }
+  
+  if (!db) await initDatabase();
+  const sql = limit 
+    ? 'SELECT * FROM records ORDER BY createdAt DESC LIMIT ?'
+    : 'SELECT * FROM records ORDER BY createdAt DESC';
+  const result = await db.getAllAsync<EnergyRecord & { visions: string; aiReport: string | null }>(sql, limit ? [limit] : []);
+  
+  return result.map((r: any) => ({
+    ...r,
+    visions: JSON.parse(r.visions),
+    aiReport: r.aiReport ? JSON.parse(r.aiReport) : undefined,
+    hasAiReport: !!r.hasAiReport,
+  }));
+}
+
+export async function getRecordsByDate(date: string): Promise<EnergyRecord[]> {
+  const startOfDay = new Date(date).setHours(0, 0, 0, 0);
+  const endOfDay = new Date(date).setHours(23, 59, 59, 999);
+  
+  if (isWeb) {
+    const records = await getRecords();
+    return records.filter(r => r.createdAt >= startOfDay && r.createdAt <= endOfDay);
+  }
+  
+  if (!db) await initDatabase();
+  
+  const result = await db.getAllAsync<EnergyRecord & { visions: string; aiReport: string | null }>(
+    'SELECT * FROM records WHERE createdAt >= ? AND createdAt <= ? ORDER BY createdAt DESC',
+    [startOfDay, endOfDay]
+  );
+  
+  return result.map((r: any) => ({
+    ...r,
+    visions: JSON.parse(r.visions),
+    aiReport: r.aiReport ? JSON.parse(r.aiReport) : undefined,
+    hasAiReport: !!r.hasAiReport,
+  }));
+}
+
+export async function addRecord(record: Omit<EnergyRecord, 'id' | 'createdAt'>): Promise<EnergyRecord> {
+  const now = Date.now();
+  const newRecord: EnergyRecord = {
+    ...record,
+    id: generateId(),
+    createdAt: now,
+  };
+  
+  if (isWeb) {
+    const records = await getRecords();
+    records.unshift(newRecord);
+    await AsyncStorage.setItem('records', JSON.stringify(records));
+    return newRecord;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync(
+    'INSERT INTO records (id, type, bodyStateId, customBodyState, visions, journal, score, createdAt, hasAiReport, aiReport) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      newRecord.id,
+      newRecord.type,
+      newRecord.bodyStateId,
+      newRecord.customBodyState || null,
+      JSON.stringify(newRecord.visions),
+      newRecord.journal,
+      newRecord.score,
+      newRecord.createdAt,
+      newRecord.hasAiReport ? 1 : 0,
+      newRecord.aiReport ? JSON.stringify(newRecord.aiReport) : null,
+    ]
+  );
+  
+  return newRecord;
+}
+
+export async function updateRecordAiReport(id: string, report: EnergyRecord['aiReport']): Promise<void> {
+  if (isWeb) {
+    const records = await getRecords();
+    const index = records.findIndex(r => r.id === id);
+    if (index !== -1) {
+      records[index].hasAiReport = true;
+      records[index].aiReport = report;
+      await AsyncStorage.setItem('records', JSON.stringify(records));
+    }
+    return;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync(
+    'UPDATE records SET hasAiReport = 1, aiReport = ? WHERE id = ?',
+    [JSON.stringify(report), id]
+  );
+}
+
+// ==================== Commitment CRUD ====================
+
+export async function getActiveCommitment(): Promise<Commitment | null> {
+  if (isWeb) {
+    const commitments = await getCommitments();
+    return commitments.find(c => c.status === 'active') || null;
+  }
+  
+  if (!db) await initDatabase();
+  const result = await db.getFirstAsync<Commitment>(
+    "SELECT * FROM commitments WHERE status = 'active' ORDER BY createdAt DESC LIMIT 1"
+  );
+  return result || null;
+}
+
+export async function getCommitments(limit?: number): Promise<Commitment[]> {
+  if (isWeb) {
+    const data = await AsyncStorage.getItem('commitments');
+    let commitments: Commitment[] = data ? JSON.parse(data) : [];
+    if (limit) commitments = commitments.slice(0, limit);
+    return commitments;
+  }
+  
+  if (!db) await initDatabase();
+  const sql = limit
+    ? 'SELECT * FROM commitments ORDER BY createdAt DESC LIMIT ?'
+    : 'SELECT * FROM commitments ORDER BY createdAt DESC';
+  const result = await db.getAllAsync<Commitment>(sql, limit ? [limit] : []);
+  return result;
+}
+
+export async function addCommitment(commitment: Omit<Commitment, 'id' | 'createdAt' | 'status'>): Promise<Commitment> {
+  const now = Date.now();
+  const newCommitment: Commitment = {
+    ...commitment,
+    id: generateId(),
+    createdAt: now,
+    status: 'active',
+  };
+  
+  if (isWeb) {
+    const commitments = await getCommitments();
+    commitments.unshift(newCommitment);
+    await AsyncStorage.setItem('commitments', JSON.stringify(commitments));
+    return newCommitment;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync(
+    'INSERT INTO commitments (id, content, visionId, timeOption, deadline, createdAt, status, failReason, failTag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      newCommitment.id,
+      newCommitment.content,
+      newCommitment.visionId,
+      newCommitment.timeOption,
+      newCommitment.deadline,
+      newCommitment.createdAt,
+      newCommitment.status,
+      newCommitment.failReason || null,
+      newCommitment.failTag || null,
+    ]
+  );
+  
+  return newCommitment;
+}
+
+export async function completeCommitment(id: string): Promise<void> {
+  if (isWeb) {
+    const commitments = await getCommitments();
+    const index = commitments.findIndex(c => c.id === id);
+    if (index !== -1) {
+      commitments[index].status = 'completed';
+      await AsyncStorage.setItem('commitments', JSON.stringify(commitments));
+    }
+    return;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync("UPDATE commitments SET status = 'completed' WHERE id = ?", [id]);
+}
+
+export async function failCommitment(id: string, reason?: string, tag?: string): Promise<void> {
+  if (isWeb) {
+    const commitments = await getCommitments();
+    const index = commitments.findIndex(c => c.id === id);
+    if (index !== -1) {
+      commitments[index].status = 'failed';
+      commitments[index].failReason = reason;
+      commitments[index].failTag = tag;
+      await AsyncStorage.setItem('commitments', JSON.stringify(commitments));
+    }
+    return;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync(
+    "UPDATE commitments SET status = 'failed', failReason = ?, failTag = ? WHERE id = ?",
+    [reason || null, tag || null, id]
+  );
+}
+
+// ==================== Statistics ====================
+
+export async function getUserStats(): Promise<UserStats> {
+  const statsStr = await AsyncStorage.getItem('user_stats');
+  if (statsStr) {
+    return JSON.parse(statsStr);
+  }
+  
+  return {
+    totalEnergy: 0,
+    streak: 0,
+    maxStreak: 0,
+    lastRecordDate: '',
+    completedCommitments: 0,
+  };
+}
+
+export async function updateUserStats(updates: Partial<UserStats>): Promise<void> {
+  const current = await getUserStats();
+  const updated = { ...current, ...updates };
+  await AsyncStorage.setItem('user_stats', JSON.stringify(updated));
+}
+
+export async function calculateDailyEnergy(date: string): Promise<number> {
+  const records = await getRecordsByDate(date);
+  return records.reduce((sum, r) => sum + r.score, 0);
+}
+
+// ==================== App State ====================
+
+export async function getHasOnboarded(): Promise<boolean> {
+  const value = await AsyncStorage.getItem('has_onboarded');
+  return value === 'true';
+}
+
+export async function setHasOnboarded(value: boolean): Promise<void> {
+  await AsyncStorage.setItem('has_onboarded', value.toString());
+}
+
+// Export full app state
+export async function exportAppState(): Promise<AppState> {
+  const [visions, records, commitments, stats, hasOnboarded] = await Promise.all([
+    getVisions(),
+    getRecords(),
+    getCommitments(),
+    getUserStats(),
+    getHasOnboarded(),
+  ]);
+  
+  return {
+    visions,
+    records,
+    commitments,
+    stats,
+    hasOnboarded,
+  };
+}
