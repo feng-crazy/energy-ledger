@@ -2,7 +2,7 @@
 
 一款自我觉察移动应用，追踪能量状态（流动/耗散），配合身体状态记录、愿景对齐和微承诺功能。
 
-> **项目来源**: 从 `/Users/hedengfeng/workspace/tmp/vision-ledger` Web 项目转换而来，现已完全迁移至 React Native + Expo。
+> **项目来源**: 从 `/Users/hedengfeng/workspace/vision-ledger` Web 项目转换而来，现已完全迁移至 React Native + Expo。
 
 ## 技术栈
 

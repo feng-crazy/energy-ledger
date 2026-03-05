@@ -54,7 +54,7 @@ export default function HomePage() {
     router.push(path as any);
   };
   
-  const handleRecordPress = async (type: 'flow' | 'drain') => {
+  const handleRecordPress = async (type: 'flow' | 'drain' | 'transform') => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(`/record?type=${type}`);
   };
@@ -83,7 +83,7 @@ export default function HomePage() {
   
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header - Fixed */}
       <View style={styles.header}>
         <View style={styles.menuContainer}>
           <TouchableOpacity 
@@ -131,101 +131,100 @@ export default function HomePage() {
         </TouchableOpacity>
       </View>
       
-      {/* Vision Pills */}
+      {/* Scrollable Content */}
       <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.visionScroll}
-        contentContainerStyle={styles.visionPills}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        {visions.slice(0, 5).map((v, i) => (
-          <View
-            key={v.id}
-            style={[
-              styles.visionPill,
-              i === 0 && styles.visionPillActive,
-            ]}
-          >
-            <Text style={[
-              styles.visionPillText,
-              i === 0 && styles.visionPillTextActive,
-            ]}>
-              {v.label}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
-      
-      {/* Energy Ball */}
-      <View style={styles.energyBallContainer}>
-        <EnergyBall 
-          score={todayEnergy}
-          onPress={() => handleRecordPress('flow')}
-        />
-        <Text style={styles.tapHint}>点击球体开始记录</Text>
-        
-        {/* Streak */}
-        <View style={styles.streakContainer}>
-          <Text style={styles.streakEmoji}>🔥</Text>
-          <Text style={styles.streakText}>连续觉察 {stats.streak} 天</Text>
-        </View>
-      </View>
-      
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.drainButton}
-          onPress={() => handleRecordPress('drain')}
-          activeOpacity={0.9}
+        {/* Vision Pills */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.visionScroll}
+          contentContainerStyle={styles.visionPills}
         >
-          <Text style={styles.drainEmoji}>🌫️</Text>
-          <Text style={styles.drainTitle}>感觉不对 / 内耗</Text>
-          <Text style={styles.drainSubtitle}>觉知即功 +5</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.flowButton}
-          onPress={() => handleRecordPress('flow')}
-          activeOpacity={0.9}
-        >
-          <Text style={styles.flowEmoji}>🌊</Text>
-          <Text style={styles.flowTitle}>感觉对劲 / 心流</Text>
-          <Text style={styles.flowSubtitle}>顺势而为 +5</Text>
-        </TouchableOpacity>
-        
-        {/* Center Transform Button */}
-        <TouchableOpacity
-          style={styles.transformButton}
-          onPress={() => handleRecordPress('transform')}
-        >
-          <Zap size={20} color="rgba(255, 220, 80, 0.95)" />
-        </TouchableOpacity>
-      </View>
-      
-      {/* Recent Records */}
-      {todayRecords.length > 0 && (
-        <View style={styles.recentRecords}>
-          <Text style={styles.recentLabel}>今日记录</Text>
-          {todayRecords.map((record, i) => (
-            <Card key={record.id} style={styles.recordCard}>
-              <View style={styles.recordContent}>
-                <View style={[
-                  styles.recordDot,
-                  { backgroundColor: record.type === 'flow' ? colors.flow.primary : colors.drain.primary }
-                ]} />
-                <Text style={styles.recordState}>
-                  {getStateEmoji(record.type, record.bodyStateId)} {getStateLabel(record.type, record.bodyStateId)}
-                </Text>
-                {record.visions[0] && (
-                  <Text style={styles.recordVision}>{getVisionLabel(record.visions[0])}</Text>
-                )}
-                <Text style={styles.recordScore}>+{record.score}</Text>
-                <Text style={styles.recordTime}>{formatTime(record.createdAt)}</Text>
-              </View>
-            </Card>
+          {visions.slice(0, 5).map((v) => (
+            <View
+              key={v.id}
+              style={[
+                styles.visionPill,
+                styles.visionPillActive,
+              ]}
+            >
+              <Text style={[
+                styles.visionPillText,
+                styles.visionPillTextActive,
+              ]}>
+                {v.label}
+              </Text>
+            </View>
           ))}
+        </ScrollView>
+        
+        {/* Energy Ball */}
+        <View style={styles.energyBallContainer}>
+          <EnergyBall 
+            score={todayEnergy}
+            onPress={() => handleRecordPress('flow')}
+          />
+          <Text style={styles.tapHint}>点击球体开始记录</Text>
+          
+          {/* Streak */}
+          <View style={styles.streakContainer}>
+            <Text style={styles.streakEmoji}>🔥</Text>
+            <Text style={styles.streakText}>连续觉察 {stats.streak} 天</Text>
+          </View>
         </View>
-      )}
+        
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.drainButton}
+            onPress={() => handleRecordPress('drain')}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.drainEmoji}>🌫️</Text>
+            <Text style={styles.drainTitle}>感觉不对 / 内耗</Text>
+            <Text style={styles.drainSubtitle}>觉知即功 +5</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.flowButton}
+            onPress={() => handleRecordPress('flow')}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.flowEmoji}>🌊</Text>
+            <Text style={styles.flowTitle}>感觉对劲 / 心流</Text>
+            <Text style={styles.flowSubtitle}>顺势而为 +5</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Recent Records */}
+        {todayRecords.length > 0 && (
+          <View style={styles.recentRecords}>
+            <Text style={styles.recentLabel}>今日记录</Text>
+            {todayRecords.map((record, i) => (
+              <Card key={record.id} style={styles.recordCard}>
+                <View style={styles.recordContent}>
+                  <View style={[
+                    styles.recordDot,
+                    { backgroundColor: record.type === 'flow' ? colors.flow.primary : colors.drain.primary }
+                  ]} />
+                  <Text style={styles.recordState}>
+                    {getStateEmoji(record.type, record.bodyStateId)} {getStateLabel(record.type, record.bodyStateId)}
+                  </Text>
+                  {record.visions[0] && (
+                    <Text style={styles.recordVision}>{getVisionLabel(record.visions[0])}</Text>
+                  )}
+                  <Text style={styles.recordScore}>+{record.score}</Text>
+                  <Text style={styles.recordTime}>{formatTime(record.createdAt)}</Text>
+                </View>
+              </Card>
+            ))}
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -234,6 +233,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.primary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: spacing['3xl'],
   },
   header: {
     flexDirection: 'row',
@@ -343,20 +349,23 @@ const styles = StyleSheet.create({
     color: colors.flow.primary,
   },
   energyBallContainer: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: spacing['2xl'],
+    paddingBottom: spacing.lg,
+    minHeight: 280,
   },
   tapHint: {
     fontSize: 13,
     color: colors.white.muted,
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   streakContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: 16,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: borderRadius.full,
@@ -375,7 +384,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl,
+    marginBottom: spacing.md,
   },
   drainButton: {
     flex: 1,

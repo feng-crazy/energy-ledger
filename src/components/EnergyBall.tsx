@@ -1,6 +1,6 @@
 // Energy Ball Component with SVG
-import React, { useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -22,18 +22,24 @@ interface EnergyBallProps {
   onPress: () => void;
 }
 
+/**
+ * 能量球组件 - 显示当前能量值的核心视觉组件
+ * 支持跨平台（iOS/Android/Web）一致的视觉效果
+ */
 export function EnergyBall({ score, onPress }: EnergyBallProps) {
   const isPositive = score >= 0;
-  const intensity = Math.min(Math.abs(score) / 100, 1);
-  
-  // Animation values
+
+  // 动画值定义
   const floatY = useSharedValue(0);
-  const pulseScale = useSharedValue(1);
-  const ringOpacity = useSharedValue(0.8);
-  const ringScale = useSharedValue(0.8);
-  
+  const ringOpacity1 = useSharedValue(0.8);
+  const ringScale1 = useSharedValue(0.8);
+  const ringOpacity2 = useSharedValue(0.8);
+  const ringScale2 = useSharedValue(0.8);
+
   useEffect(() => {
-    // Float animation
+    console.log('[EnergyBall] Component mounted, score:', score);
+
+    // 悬浮动画 - 仅在正能量状态下启用
     floatY.value = withRepeat(
       withSequence(
         withTiming(-8, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
@@ -42,9 +48,28 @@ export function EnergyBall({ score, onPress }: EnergyBallProps) {
       -1,
       true
     );
-    
-    // Pulse ring animation
-    ringOpacity.value = withRepeat(
+
+    // 第一个脉冲环动画
+    ringOpacity1.value = withRepeat(
+      withSequence(
+        withTiming(0.8, { duration: 0 }),
+        withDelay(0, withTiming(0, { duration: 2000 }))
+      ),
+      -1,
+      false
+    );
+
+    ringScale1.value = withRepeat(
+      withSequence(
+        withTiming(0.8, { duration: 0 }),
+        withDelay(0, withTiming(1.6, { duration: 2000 }))
+      ),
+      -1,
+      false
+    );
+
+    // 第二个脉冲环动画 - 延迟启动
+    ringOpacity2.value = withRepeat(
       withSequence(
         withTiming(0.8, { duration: 0 }),
         withDelay(1000, withTiming(0, { duration: 2000 }))
@@ -52,8 +77,8 @@ export function EnergyBall({ score, onPress }: EnergyBallProps) {
       -1,
       false
     );
-    
-    ringScale.value = withRepeat(
+
+    ringScale2.value = withRepeat(
       withSequence(
         withTiming(0.8, { duration: 0 }),
         withDelay(1000, withTiming(1.6, { duration: 2000 }))
@@ -61,63 +86,149 @@ export function EnergyBall({ score, onPress }: EnergyBallProps) {
       -1,
       false
     );
+
+    return () => {
+      console.log('[EnergyBall] Component unmounted');
+    };
   }, []);
-  
+
+  // 悬浮动画样式
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: isPositive ? floatY.value : 0 },
     ],
   }));
-  
-  const pulseRingStyle = useAnimatedStyle(() => ({
-    opacity: ringOpacity.value,
-    transform: [{ scale: ringScale.value }],
+
+  // 第一个脉冲环样式
+  const pulseRingStyle1 = useAnimatedStyle(() => ({
+    opacity: ringOpacity1.value,
+    transform: [{ scale: ringScale1.value }],
   }));
-  
+
+  // 第二个脉冲环样式（带延迟）
+  const pulseRingStyle2 = useAnimatedStyle(() => ({
+    opacity: ringOpacity2.value,
+    transform: [{ scale: ringScale2.value }],
+  }));
+
+  // 点击事件处理
   const handlePress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    console.log('[EnergyBall] Ball pressed, current score:', score);
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      console.warn('[EnergyBall] Haptics not available:', error);
+    }
     onPress();
   };
-  
+
+  // 颜色配置
   const primaryColor = isPositive ? colors.flow.primary : colors.drain.primary;
   const secondaryColor = isPositive ? '#00ffea' : '#c060ff';
-  
+
+  // 发光背景颜色
+  const glowOuterColor = isPositive ? 'rgba(0, 220, 200, 0.15)' : 'rgba(160, 80, 220, 0.15)';
+  const glowInnerColor = isPositive ? 'rgba(0, 220, 200, 0.25)' : 'rgba(160, 80, 220, 0.25)';
+
+  // 阴影颜色配置
+  const shadowColor = isPositive ? '#00d4d4' : '#a050dc';
+
+  // 平台特定的阴影样式
+  const platformShadowStyle = useMemo(() => {
+    if (Platform.OS === 'ios') {
+      return {
+        shadowColor,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.6,
+        shadowRadius: 24,
+      };
+    }
+    // Android 和 Web 使用 elevation
+    return {
+      shadowColor,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.4,
+      shadowRadius: 16,
+      elevation: 20,
+    };
+  }, [shadowColor]);
+
+  // SVG 渐变 ID 使用 useMemo 确保稳定性
+  const gradientIds = useMemo(() => ({
+    ball: `ballGradient-${isPositive ? 'flow' : 'drain'}`,
+    shadow: `shadowGradient-${isPositive ? 'flow' : 'drain'}`,
+  }), [isPositive]);
+
+  console.log('[EnergyBall] Rendering with primaryColor:', primaryColor, 'isPositive:', isPositive);
+
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.9}>
       <View style={styles.container}>
-        {/* Pulse rings */}
-        <Animated.View style={[styles.pulseRing, pulseRingStyle, { borderColor: primaryColor }]} />
-        <Animated.View style={[styles.pulseRing, pulseRingStyle, { borderColor: primaryColor, animationDelay: '1s' }]} />
-        
-        {/* Glow backdrop */}
-        <View style={[styles.glowBackdrop, { backgroundColor: isPositive ? 'rgba(0, 220, 200, 0.2)' : 'rgba(160, 80, 220, 0.2)' }]} />
-        
-        {/* Main ball */}
-        <Animated.View style={[styles.ballContainer, animatedStyle]}>
-          <Svg width={BALL_SIZE} height={BALL_SIZE}>
+        {/* 脉冲环 - 使用两个独立的动画值实现延迟效果 */}
+        <Animated.View style={[styles.pulseRing, pulseRingStyle1, { borderColor: primaryColor }]} />
+        <Animated.View style={[styles.pulseRing, pulseRingStyle2, { borderColor: primaryColor }]} />
+
+        {/* 外发光背景 */}
+        <View style={[styles.glowBackdrop, styles.glowBackdropOuter, { backgroundColor: glowOuterColor }]} />
+        {/* 内发光背景 */}
+        <View style={[styles.glowBackdrop, styles.glowBackdropInner, { backgroundColor: glowInnerColor }]} />
+
+        {/* 主球体容器 */}
+        <Animated.View style={[styles.ballContainer, animatedStyle, platformShadowStyle]}>
+          <Svg width={BALL_SIZE} height={BALL_SIZE} viewBox={`0 0 ${BALL_SIZE} ${BALL_SIZE}`}>
             <Defs>
-              <RadialGradient id="ballGradient" cx="30%" cy="30%" r="70%">
-                <Stop offset="0%" stopColor={secondaryColor} stopOpacity="1" />
-                <Stop offset="100%" stopColor={primaryColor} stopOpacity="1" />
+              {/* 球体渐变 - 使用数值而非百分比提高兼容性 */}
+              <RadialGradient
+                id={gradientIds.ball}
+                cx={BALL_SIZE * 0.35}
+                cy={BALL_SIZE * 0.35}
+                rx={BALL_SIZE * 0.65}
+                ry={BALL_SIZE * 0.65}
+                fx={BALL_SIZE * 0.35}
+                fy={BALL_SIZE * 0.35}
+              >
+                <Stop offset="0" stopColor={secondaryColor} stopOpacity="1" />
+                <Stop offset="0.5" stopColor={primaryColor} stopOpacity="0.95" />
+                <Stop offset="1" stopColor={primaryColor} stopOpacity="0.85" />
+              </RadialGradient>
+              {/* 阴影渐变 */}
+              <RadialGradient
+                id={gradientIds.shadow}
+                cx={BALL_SIZE * 0.5}
+                cy={BALL_SIZE * 0.5}
+                rx={BALL_SIZE * 0.5}
+                ry={BALL_SIZE * 0.5}
+              >
+                <Stop offset="0" stopColor="rgba(0,0,0,0)" stopOpacity="0" />
+                <Stop offset="0.8" stopColor="rgba(0,0,0,0.3)" stopOpacity="0.3" />
+                <Stop offset="1" stopColor="rgba(0,0,0,0.5)" stopOpacity="0.5" />
               </RadialGradient>
             </Defs>
+            {/* 阴影层 */}
             <SvgCircle
               cx={BALL_SIZE / 2}
               cy={BALL_SIZE / 2}
-              r={BALL_SIZE / 2 - 2}
-              fill="url(#ballGradient)"
+              r={(BALL_SIZE / 2) - 2}
+              fill={`url(#${gradientIds.shadow})`}
+            />
+            {/* 主球体层 */}
+            <SvgCircle
+              cx={BALL_SIZE / 2}
+              cy={BALL_SIZE / 2}
+              r={(BALL_SIZE / 2) - 2}
+              fill={`url(#${gradientIds.ball})`}
             />
           </Svg>
-          
-          {/* Inner highlight */}
+
+          {/* 内部高光 */}
           <View style={styles.innerHighlight} />
-          
-          {/* Score display */}
-          <View style={styles.scoreContainer}>
-            <Animated.Text style={[styles.scoreText, { color: '#FFFFFF' }]}>
+
+          {/* 分数显示 */}
+          <View style={styles.scoreContainer} pointerEvents="none">
+            <Text style={[styles.scoreText, { color: '#FFFFFF' }]}>
               {score > 0 ? '+' : ''}{score}
-            </Animated.Text>
-            <Animated.Text style={styles.scoreLabel}>能量值</Animated.Text>
+            </Text>
+            <Text style={styles.scoreLabel}>能量值</Text>
           </View>
         </Animated.View>
       </View>
@@ -131,6 +242,8 @@ const styles = StyleSheet.create({
     height: 200,
     alignItems: 'center',
     justifyContent: 'center',
+    // 确保容器有明确的定位上下文
+    position: 'relative',
   },
   pulseRing: {
     position: 'absolute',
@@ -138,12 +251,23 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 100,
     borderWidth: 1,
+    // 确保脉冲环从中心扩散
+    top: 0,
+    left: 0,
   },
   glowBackdrop: {
     position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    borderRadius: 100,
+  },
+  glowBackdropOuter: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+  },
+  glowBackdropInner: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
   },
   ballContainer: {
     width: BALL_SIZE,
@@ -151,28 +275,50 @@ const styles = StyleSheet.create({
     borderRadius: BALL_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#00d4d4',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 40,
-    elevation: 10,
+    // 阴影通过 platformShadowStyle 动态设置，这里只保留基础样式
+    overflow: 'hidden', // 确保子元素不溢出
   },
   innerHighlight: {
     position: 'absolute',
-    top: 18,
-    left: 22,
-    width: 40,
-    height: 25,
-    borderRadius: 12.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    top: '20%',
+    left: '18%',
+    width: '35%',
+    height: '22%',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    // 移除阴影避免 Android 渲染问题
+    ...Platform.select({
+      ios: {
+        shadowColor: '#FFFFFF',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: {
+        // Android 使用 elevation 替代阴影
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 2px 4px rgba(255, 255, 255, 0.3)',
+      },
+    }),
   },
   scoreContainer: {
+    position: 'absolute', // 绝对定位确保文字居中
     alignItems: 'center',
     justifyContent: 'center',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   scoreText: {
     fontSize: 28,
     fontWeight: '700',
+    // 确保文字有阴影效果增强可读性
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   scoreLabel: {
     fontSize: 10,
