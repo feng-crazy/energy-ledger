@@ -185,9 +185,24 @@ export default function ContractPage() {
               </View>
             </View>
             <View style={styles.energyBar}>
-              <View style={[styles.energyBarFill, { width: `${Math.min(stats.totalEnergy / 10, 100)}%` }]} />
+              <View 
+                style={[
+                  styles.energyBarFill, 
+                  { 
+                    width: `${stats.totalEnergy > 0 && stats.totalEnergy % 100 === 0 ? 100 : stats.totalEnergy % 100}%`,
+                    backgroundColor: colors.flow.primary,
+                  }
+                ]} 
+              />
             </View>
-            <Text style={styles.energyNote}>{Math.min(stats.totalEnergy / 10, 100).toFixed(0)}% · 距下一级还需 {Math.max(0, 1000 - stats.totalEnergy)} pts</Text>
+            <Text style={styles.energyNote}>
+              阶段 {Math.floor(stats.totalEnergy / 100)} · {stats.totalEnergy > 0 && stats.totalEnergy % 100 === 0 ? 100 : stats.totalEnergy % 100}/100
+              {stats.totalEnergy >= 100 && (
+                <Text style={styles.energyNoteNext}>
+                  · 距下阶段还需 {stats.totalEnergy % 100 === 0 ? 100 : 100 - (stats.totalEnergy % 100)} pts
+                </Text>
+              )}
+            </Text>
           </Card>
           
           {/* Countdown */}
@@ -470,6 +485,11 @@ const styles = StyleSheet.create({
     color: colors.white.muted,
     textAlign: 'right',
     marginTop: 4,
+  },
+  energyNoteNext: {
+    fontSize: 11,
+    color: colors.transform.primary,
+    fontWeight: '600',
   },
   countdownCard: {
     flexDirection: 'row',

@@ -48,6 +48,7 @@ export default function OnboardingPage() {
         const preset = PRESET_VISIONS.find(p => p.id === visionId);
         if (preset) {
           await addVision({
+            title: preset.title,
             emoji: preset.emoji,
             label: preset.label,
             desc: preset.desc,

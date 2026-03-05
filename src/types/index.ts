@@ -19,10 +19,11 @@ export interface BodyState {
 // 愿景
 export interface Vision {
   id: string;
+  title: string; // 愿景名称（用户自定义）
   emoji: string;
-  label: string;
-  desc: string;
-  detail?: string;
+  label: string; // 标签（简短分类）
+  desc: string; // 概念描述
+  detail?: string; // 详细描述
   createdAt: number;
   updatedAt: number;
 }
@@ -83,6 +84,8 @@ export interface RadarData {
   vision: string;
   value: number;
   fullMark: number;
+  stage?: number;
+  totalScore?: number;
 }
 
 // 应用状态
@@ -96,16 +99,16 @@ export interface AppState {
 
 // 预设愿景
 export const PRESET_VISIONS: Omit<Vision, 'createdAt' | 'updatedAt'>[] = [
-  { id: 'health', emoji: '🏃', label: '健康', desc: '身体活力与生命力' },
-  { id: 'family', emoji: '👨‍👩‍👧', label: '家庭', desc: '亲密关系与归属感' },
-  { id: 'career', emoji: '💼', label: '事业', desc: '成就与社会价值' },
-  { id: 'freedom', emoji: '🕊️', label: '自由', desc: '内在与外在的自由' },
-  { id: 'create', emoji: '🎨', label: '创造', desc: '表达与艺术创作' },
-  { id: 'learn', emoji: '📚', label: '学习', desc: '知识与智慧增长' },
-  { id: 'wealth', emoji: '💰', label: '财富', desc: '物质丰盛与安全感' },
-  { id: 'relation', emoji: '🤝', label: '关系', desc: '人际连接与信任' },
-  { id: 'peace', emoji: '🧘', label: '平静', desc: '内心安宁与临在' },
-  { id: 'spirit', emoji: '✨', label: '灵性', desc: '超越自我的联结' },
+  { id: 'health', title: '身心健康', emoji: '🏃', label: '健康', desc: '身体活力与生命力' },
+  { id: 'family', title: '家庭和睦', emoji: '👨‍👩‍👧', label: '家庭', desc: '亲密关系与归属感' },
+  { id: 'career', title: '事业发展', emoji: '💼', label: '事业', desc: '成就与社会价值' },
+  { id: 'freedom', title: '身心自由', emoji: '🕊️', label: '自由', desc: '内在与外在的自由' },
+  { id: 'create', title: '创意表达', emoji: '🎨', label: '创造', desc: '表达与艺术创作' },
+  { id: 'learn', title: '持续成长', emoji: '📚', label: '学习', desc: '知识与智慧增长' },
+  { id: 'wealth', title: '财富自由', emoji: '💰', label: '财富', desc: '物质丰盛与安全感' },
+  { id: 'relation', title: '人际和谐', emoji: '🤝', label: '关系', desc: '人际连接与信任' },
+  { id: 'peace', title: '内心平静', emoji: '🧘', label: '平静', desc: '内心安宁与临在' },
+  { id: 'spirit', title: '灵性成长', emoji: '✨', label: '灵性', desc: '超越自我的联结' },
 ];
 
 // 耗散态选项

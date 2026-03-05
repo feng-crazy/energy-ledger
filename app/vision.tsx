@@ -23,28 +23,120 @@ export default function VisionPage() {
   
   const [showAdd, setShowAdd] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [isCustom, setIsCustom] = useState(false);
+  const [customTitle, setCustomTitle] = useState('');
+  const [customLabel, setCustomLabel] = useState('');
+  const [customDesc, setCustomDesc] = useState('');
+  const [customEmoji, setCustomEmoji] = useState('🎯');
   const [detailInput, setDetailInput] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingDetail, setEditingDetail] = useState('');
+  const [error, setError] = useState<string | null>(null);
   
   const handleAddVision = async () => {
-    if (!selectedPreset) return;
-    const preset = PRESET_VISIONS.find(p => p.id === selectedPreset);
-    if (!preset || visions.find(v => v.id === preset.id)) return;
+    setError(null);
     
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // 检查愿景数量限制
+    if (visions.length >= 3) {
+      setError('最多只能添加 3 个愿景');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
     
-    await addVision({
-      emoji: preset.emoji,
-      label: preset.label,
-      desc: preset.desc,
-      detail: detailInput || undefined,
-    });
+    if (isCustom) {
+      // 自定义愿景验证
+      if (!customTitle || !customLabel || !customDesc || !detailInput) {
+        setError('请填写所有必填项');
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
+      
+      // 验证长度限制
+      const titleLength = customTitle.replace(/[^\u4e00-\u9fa5]/g, '').length;
+      const labelLength = customLabel.replace(/[^\u4e00-\u9fa5]/g, '').length;
+      const descLength = customDesc.replace(/[^\u4e00-\u9fa5]/g, '').length;
+      const detailLength = detailInput.length;
+      
+      if (titleLength > 6) {
+        setError('愿景名称最多 6 个汉字');
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
+      
+      if (labelLength > 4) {
+        setError('标签最多 4 个汉字');
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
+      
+      if (descLength > 120) {
+        setError('概念描述最多 120 个汉字');
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
+      
+      if (detailLength > 2000) {
+        setError('详细描述最多 2000 个字');
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
+      
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      await addVision({
+        title: customTitle,
+        emoji: customEmoji,
+        label: customLabel,
+        desc: customDesc,
+        detail: detailInput,
+      });
+      
+      setIsCustom(false);
+      setCustomTitle('');
+      setCustomLabel('');
+      setCustomDesc('');
+      setCustomEmoji('🎯');
+    } else {
+      // 预设愿景
+      if (!selectedPreset) {
+        setError('请选择一个愿景');
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
+      const preset = PRESET_VISIONS.find(p => p.id === selectedPreset);
+      if (!preset || visions.find(v => v.id === preset.id)) return;
+      
+      // 验证必填项
+      if (!detailInput) {
+        setError('请填写详细描述');
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
+      
+      // 验证长度限制
+      const detailLength = detailInput.length;
+      if (detailLength > 2000) {
+        setError('详细描述最多 2000 个字');
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
+      
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      await addVision({
+        title: preset.title,
+        emoji: preset.emoji,
+        label: preset.label,
+        desc: preset.desc,
+        detail: detailInput,
+      });
+    }
     
     setShowAdd(false);
     setSelectedPreset(null);
     setDetailInput('');
+    setError(null);
   };
   
   const handleRemove = async (id: string) => {
@@ -74,8 +166,8 @@ export default function VisionPage() {
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>愿景设定</Text>
-          <Text style={styles.headerSubtitle}>明确愿景，驱动觉察</Text>
+          <Text style={styles.headerTitle}>愿景</Text>
+          <Text style={styles.headerSubtitle}>明确愿景，驱动人生</Text>
         </View>
         
         <TouchableOpacity
@@ -90,7 +182,7 @@ export default function VisionPage() {
         {/* Intro */}
         <Card style={styles.introCard} variant="flow">
           <Text style={styles.introText}>
-            愿景是你能量流动的方向。越具体的愿景，越能帮助你在日常中做出清醒的选择。
+            愿景是你能量流动的方向。越具体的愿景，越能帮助你在日常中做出清醒的选择，最多只能设定 3 个愿景。
           </Text>
         </Card>
         
@@ -108,8 +200,11 @@ export default function VisionPage() {
                   <Text style={styles.visionEmoji}>{vision.emoji}</Text>
                 </View>
                 <View>
-                  <Text style={styles.visionLabel}>{vision.label}</Text>
-                  <Text style={styles.visionDesc}>{vision.desc}</Text>
+                  <Text style={styles.visionTitle}>{vision.title}</Text>
+                  <View style={styles.visionMeta}>
+                    <Text style={styles.visionLabel}>{vision.label}</Text>
+                    <Text style={styles.visionDesc}>{vision.desc}</Text>
+                  </View>
                 </View>
               </View>
               
@@ -174,7 +269,11 @@ export default function VisionPage() {
         ))}
         
         {/* Add Button */}
-        {!showAdd ? (
+        {visions.length >= 3 ? (
+          <View style={styles.maxVisionHint}>
+            <Text style={styles.maxVisionText}>已达到最大愿景数量（3 个）</Text>
+          </View>
+        ) : !showAdd ? (
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => setShowAdd(true)}
@@ -185,48 +284,105 @@ export default function VisionPage() {
         ) : (
           <Card style={styles.addForm}>
             <View style={styles.addFormHeader}>
-              <Text style={styles.addFormTitle}>选择愿景标签</Text>
+              <Text style={styles.addFormTitle}>添加愿景</Text>
               <TouchableOpacity onPress={() => {
                 setShowAdd(false);
                 setSelectedPreset(null);
+                setIsCustom(false);
+                setCustomTitle('');
+                setCustomLabel('');
+                setCustomDesc('');
+                setCustomEmoji('🎯');
                 setDetailInput('');
+                setError(null);
               }}>
                 <X size={16} color={colors.white.muted} />
               </TouchableOpacity>
             </View>
             
-            <View style={styles.presetGrid}>
-              {availablePresets.map((preset) => {
-                const isSelected = selectedPreset === preset.id;
-                return (
-                  <TouchableOpacity
-                    key={preset.id}
-                    style={[
-                      styles.presetCard,
-                      isSelected && styles.presetCardSelected,
-                    ]}
-                    onPress={() => setSelectedPreset(isSelected ? null : preset.id)}
-                  >
-                    <Text style={styles.presetEmoji}>{preset.emoji}</Text>
-                    <Text style={[
-                      styles.presetLabel,
-                      isSelected && styles.presetLabelSelected,
-                    ]}>
-                      {preset.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+            {/* 错误提示 */}
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+            
+            {/* 选择模式 */}
+            <View style={styles.modeToggle}>
+              <TouchableOpacity
+                style={[
+                  styles.modeButton,
+                  !isCustom && styles.modeButtonActive,
+                ]}
+                onPress={() => setIsCustom(false)}
+              >
+                <Text style={[
+                  styles.modeButtonText,
+                  !isCustom && styles.modeButtonTextActive,
+                ]}>选择预设</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modeButton,
+                  isCustom && styles.modeButtonActive,
+                ]}
+                onPress={() => setIsCustom(true)}
+              >
+                <Text style={[
+                  styles.modeButtonText,
+                  isCustom && styles.modeButtonTextActive,
+                ]}>自定义</Text>
+              </TouchableOpacity>
             </View>
             
-            {selectedPreset && (
-              <>
-                <Text style={styles.detailInputLabel}>详细描述你的愿景（可选，越具体越好）</Text>
+            {isCustom ? (
+              /* 自定义表单 */
+              <View>
+                <Text style={styles.inputLabel}>图标</Text>
+                <TextInput
+                  style={styles.emojiInput}
+                  value={customEmoji}
+                  onChangeText={setCustomEmoji}
+                  placeholder="🎯"
+                  placeholderTextColor={colors.white.muted}
+                  maxLength={2}
+                />
+                
+                <Text style={styles.inputLabel}>愿景名称 *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={customTitle}
+                  onChangeText={setCustomTitle}
+                  placeholder="必填，最多 6 个汉字，例如：身心健康"
+                  placeholderTextColor={colors.white.muted}
+                />
+                
+                <Text style={styles.inputLabel}>标签（简短分类） *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={customLabel}
+                  onChangeText={setCustomLabel}
+                  placeholder="必填，最多 4 个汉字，例如：健康、财富"
+                  placeholderTextColor={colors.white.muted}
+                />
+                
+                <Text style={styles.inputLabel}>概念描述 *</Text>
+                <TextInput
+                  style={styles.textArea}
+                  value={customDesc}
+                  onChangeText={setCustomDesc}
+                  placeholder="必填，最多 120 个汉字，用一句话描述这个愿景的核心..."
+                  placeholderTextColor={colors.white.muted}
+                  multiline
+                  numberOfLines={3}
+                />
+                
+                <Text style={styles.detailInputLabel}>详细描述 *</Text>
                 <TextInput
                   style={styles.detailInput}
                   value={detailInput}
                   onChangeText={setDetailInput}
-                  placeholder="例如：我希望在40岁前拥有稳定的被动收入..."
+                  placeholder="必填，最多 2000 字，例如：我希望在 40 岁前拥有稳定的被动收入..."
                   placeholderTextColor={colors.white.muted}
                   multiline
                   numberOfLines={4}
@@ -237,8 +393,59 @@ export default function VisionPage() {
                   onPress={handleAddVision}
                   variant="flow"
                   size="lg"
+                  disabled={visions.length >= 3 || !customTitle || !customLabel || !customDesc || !detailInput}
                 />
-              </>
+              </View>
+            ) : (
+              /* 预设选择 */
+              <View>
+                <View style={styles.presetGrid}>
+                  {availablePresets.map((preset) => {
+                    const isSelected = selectedPreset === preset.id;
+                    return (
+                      <TouchableOpacity
+                        key={preset.id}
+                        style={[
+                          styles.presetCard,
+                          isSelected && styles.presetCardSelected,
+                        ]}
+                        onPress={() => setSelectedPreset(isSelected ? null : preset.id)}
+                      >
+                        <Text style={styles.presetEmoji}>{preset.emoji}</Text>
+                        <Text style={[
+                          styles.presetLabel,
+                          isSelected && styles.presetLabelSelected,
+                        ]}>
+                          {preset.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                
+                {selectedPreset && (
+                  <>
+                    <Text style={styles.detailInputLabel}>详细描述 *</Text>
+                    <TextInput
+                      style={styles.detailInput}
+                      value={detailInput}
+                      onChangeText={setDetailInput}
+                      placeholder="必填，最多 2000 字，例如：我希望在 40 岁前拥有稳定的被动收入..."
+                      placeholderTextColor={colors.white.muted}
+                      multiline
+                      numberOfLines={4}
+                    />
+                    
+                    <Button
+                      title="确认添加"
+                      onPress={handleAddVision}
+                      variant="flow"
+                      size="lg"
+                      disabled={visions.length >= 3 || !detailInput}
+                    />
+                  </>
+                )}
+              </View>
             )}
           </Card>
         )}
@@ -339,15 +546,28 @@ const styles = StyleSheet.create({
   visionEmoji: {
     fontSize: 20,
   },
-  visionLabel: {
+  visionTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.white.primary,
   },
+  visionMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  visionLabel: {
+    fontSize: 11,
+    color: colors.flow.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    backgroundColor: 'rgba(0, 180, 180, 0.15)',
+  },
   visionDesc: {
     fontSize: 11,
     color: colors.white.muted,
-    marginTop: 2,
   },
   visionActions: {
     flexDirection: 'row',
@@ -420,6 +640,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.white.muted,
   },
+  maxVisionHint: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: borderRadius['3xl'],
+    backgroundColor: 'rgba(0, 180, 180, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 200, 200, 0.3)',
+    alignItems: 'center',
+  },
+  maxVisionText: {
+    fontSize: 13,
+    color: colors.flow.primary,
+  },
   addForm: {
     borderWidth: 1,
     borderColor: 'rgba(0, 200, 200, 0.2)',
@@ -434,6 +667,93 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.white.secondary,
+  },
+  errorContainer: {
+    padding: 12,
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(255, 60, 60, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 60, 60, 0.3)',
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 12,
+    color: 'rgba(255, 100, 100, 0.9)',
+    textAlign: 'center',
+  },
+  visionCountHint: {
+    padding: 8,
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(0, 180, 180, 0.1)',
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  visionCountText: {
+    fontSize: 11,
+    color: colors.flow.primary,
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modeButtonActive: {
+    backgroundColor: 'rgba(0, 180, 180, 0.2)',
+    borderColor: 'rgba(0, 200, 200, 0.5)',
+  },
+  modeButtonText: {
+    fontSize: 13,
+    color: colors.white.muted,
+  },
+  modeButtonTextActive: {
+    color: colors.flow.primary,
+    fontWeight: '600',
+  },
+  inputLabel: {
+    fontSize: 11,
+    color: colors.white.muted,
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  textInput: {
+    padding: 12,
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    color: colors.white.primary,
+    fontSize: 14,
+  },
+  textArea: {
+    padding: 12,
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    color: colors.white.primary,
+    fontSize: 14,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    lineHeight: 22,
+  },
+  emojiInput: {
+    padding: 12,
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    color: colors.white.primary,
+    fontSize: 24,
+    textAlign: 'center',
   },
   presetGrid: {
     flexDirection: 'row',

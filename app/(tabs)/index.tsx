@@ -1,5 +1,5 @@
 // Home Page - 愿景能量罗盘
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Settings, ChevronDown, BarChart2, Zap, Brain } from 'lucide-react-native';
@@ -42,12 +43,13 @@ export default function HomePage() {
     setTodayEnergy(total);
   }, [records]);
   
-  // Get today's records for display
-  const todayRecords = records.filter(r => {
-    const today = new Date().toISOString().split('T')[0];
-    const recordDate = new Date(r.createdAt).toISOString().split('T')[0];
-    return recordDate === today;
-  }).slice(0, 3);
+  // Get recent records for display (show 5 as preview, sorted by newest first)
+  const recentRecords = useMemo(() => {
+    return [...records].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+  }, [records]);
+  
+  // Check if there are more records to show
+  const hasMoreRecords = records.length > 5;
   
   const handleNavigate = (path: string) => {
     setMenuOpen(false);
@@ -127,7 +129,11 @@ export default function HomePage() {
           style={styles.settingsButton}
           onPress={() => router.push('/vision')}
         >
-          <Settings size={16} color={colors.white.tertiary} />
+          <Image 
+            source={require('../../assets/favicon.png')} 
+            style={styles.visionIcon}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
       </View>
       
@@ -156,7 +162,7 @@ export default function HomePage() {
                 styles.visionPillText,
                 styles.visionPillTextActive,
               ]}>
-                {v.label}
+                {v.title}
               </Text>
             </View>
           ))}
@@ -201,10 +207,18 @@ export default function HomePage() {
         </View>
         
         {/* Recent Records */}
-        {todayRecords.length > 0 && (
+        {recentRecords.length > 0 && (
           <View style={styles.recentRecords}>
-            <Text style={styles.recentLabel}>今日记录</Text>
-            {todayRecords.map((record, i) => (
+            <View style={styles.recentHeader}>
+              <Text style={styles.recentLabel}>觉察记录</Text>
+              {hasMoreRecords && (
+                <TouchableOpacity onPress={() => router.push('/records')} style={styles.viewAllButton}>
+                  <Text style={styles.viewAllText}>查看全部</Text>
+                  <ChevronDown size={14} color={colors.flow.primary} style={{ transform: [{ rotate: '-90deg' }] }} />
+                </TouchableOpacity>
+              )}
+            </View>
+            {recentRecords.map((record) => (
               <Card key={record.id} style={styles.recordCard}>
                 <View style={styles.recordContent}>
                   <View style={[
@@ -318,9 +332,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  visionIcon: {
+    width: 20,
+    height: 20,
   },
   visionScroll: {
     marginTop: spacing.sm,
@@ -451,6 +469,23 @@ const styles = StyleSheet.create({
   recentRecords: {
     paddingHorizontal: 16,
     marginBottom: 24,
+  },
+  recentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingLeft: 4,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewAllText: {
+    fontSize: 11,
+    color: colors.flow.primary,
+    fontWeight: '500',
   },
   recentLabel: {
     fontSize: 11,

@@ -16,7 +16,7 @@ import { colors, typography, spacing, borderRadius } from '@/utils/theme';
 import { DailyRecordData, RadarData } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const periods = ['今日', '本周', '本月'];
+const periods = ['今日', '本周'];
 
 export default function StatsPage() {
   const router = useRouter();
@@ -52,7 +52,7 @@ export default function StatsPage() {
         data.push({ time: `${i.toString().padStart(2, '0')}`, energy, drain });
       }
       return data;
-    } else if (period === 1) {
+    } else {
       // Week
       const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
       const today = new Date();
@@ -69,40 +69,38 @@ export default function StatsPage() {
         data.push({ time: days[date.getDay()], energy, drain });
       }
       return data;
-    } else {
-      // Month
-      const today = new Date();
-      const data: DailyRecordData[] = [];
-      for (let i = 28; i >= 0; i -= 5) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const dayRecords = records.filter(r => {
-          const rDate = new Date(r.createdAt);
-          return rDate.toDateString() === date.toDateString();
-        });
-        const energy = dayRecords.filter(r => r.type === 'flow').reduce((s, r) => s + r.score, 0);
-        const drain = Math.abs(dayRecords.filter(r => r.type === 'drain').reduce((s, r) => s + r.score, 0));
-        data.push({ time: `${date.getDate()}`, energy, drain });
-      }
-      return data;
     }
   };
   
   // Vision radar data
   const getRadarData = (): RadarData[] => {
-    return visions.map(vision => {
+    if (visions.length === 0) return [];
+    
+    // 计算每个愿景的总能量
+    const visionScores = visions.map(vision => {
       const visionRecords = records.filter(r => r.visions.includes(vision.id));
       const totalScore = visionRecords.reduce((sum, r) => sum + r.score, 0);
-      const maxScore = Math.max(visions.length > 0 ? 
-        visions.reduce((max, v) => {
-          const vRecords = records.filter(r => r.visions.includes(v.id));
-          return Math.max(max, vRecords.reduce((s, r) => s + r.score, 0));
-        }, 100) : 100, 100);
+      return { vision, totalScore };
+    });
+    
+    // 使用100分作为基准阶段，进度条显示当前阶段的完成度（1-100）
+    // 当 totalScore 是100的倍数时，进度条应该显示100（满）
+    // 阶段数 = Math.floor(totalScore / 100), 进度值 = totalScore % 100 或 100
+    return visionScores.map(({ vision, totalScore }) => {
+      const stage = Math.floor(totalScore / 100) + 1;
+      // 如果 totalScore > 0 且余数为0，说明刚好完成一个阶段，进度条显示100
+      const progressValue = totalScore > 0 && totalScore % 100 === 0 
+        ? 100 
+        : totalScore % 100;
+      
+      console.log(`[Radar] 愿景: ${vision.title}, 总分: ${totalScore}, 阶段: ${stage}, 进度: ${progressValue}%`);
       
       return {
-        vision: vision.label,
-        value: Math.min(100, Math.max(0, (totalScore / maxScore) * 100)),
+        vision: vision.title,
+        value: progressValue,
         fullMark: 100,
+        stage: stage,
+        totalScore: totalScore,
       };
     });
   };
@@ -228,34 +226,33 @@ export default function StatsPage() {
               {radarData.map((d, i) => (
                 <View key={d.vision} style={styles.radarRow}>
                   <Text style={styles.radarLabel}>{d.vision}</Text>
-                  <View style={styles.radarBarBg}>
-                    <View 
-                      style={[
-                        styles.radarBarFill,
-                        { 
-                          width: `${d.value}%`,
-                          backgroundColor: d.value < 50 ? colors.drain.primary : colors.flow.primary,
-                        }
-                      ]} 
-                    />
+                  <View style={styles.radarBarContainer}>
+                    <View style={styles.radarBarBg}>
+                      <View 
+                        style={[
+                          styles.radarBarFill,
+                          { 
+                            width: `${d.value}%`,
+                            backgroundColor: colors.flow.primary,
+                          }
+                        ]} 
+                      />
+                    </View>
+                    {d.stage !== undefined && d.stage > 0 && (
+                      <View style={styles.radarStageBadge}>
+                        <Text style={styles.radarStageText}>阶段{d.stage}</Text>
+                      </View>
+                    )}
                   </View>
-                  <Text style={styles.radarValue}>{Math.round(d.value)}</Text>
+                  <Text style={styles.radarValue}>
+                    {d.totalScore !== undefined ? d.totalScore : Math.round(d.value)} pts
+                  </Text>
                 </View>
               ))}
             </View>
           ) : (
             <Text style={styles.emptyText}>暂无愿景数据</Text>
-          )}
-          
-          {/* Warnings */}
-          {radarData.filter(d => d.value < 50).map(d => (
-            <View key={d.vision} style={styles.warningCard}>
-              <View style={styles.warningDot} />
-              <Text style={styles.warningText}>
-                {d.vision} 维度能量偏低（{Math.round(d.value)}），需要关注
-              </Text>
-            </View>
-          ))}
+          )}     
         </Card>
         
         {/* Heatmap (Simplified) */}
@@ -465,6 +462,36 @@ const styles = StyleSheet.create({
     width: 50,
     fontSize: 11,
     color: colors.white.secondary,
+  },
+  radarLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    width: 50,
+  },
+  radarBarContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 8,
+    gap: 8,
+  },
+  radarStage: {
+    fontSize: 9,
+    color: colors.transform.primary,
+  },
+  radarStageBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(160, 80, 220, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(160, 80, 220, 0.4)',
+  },
+  radarStageText: {
+    fontSize: 9,
+    color: colors.transform.primary,
+    fontWeight: '500',
   },
   radarBarBg: {
     flex: 1,

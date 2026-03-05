@@ -31,6 +31,7 @@ export async function initDatabase(): Promise<void> {
     
     CREATE TABLE IF NOT EXISTS visions (
       id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
       emoji TEXT NOT NULL,
       label TEXT NOT NULL,
       desc TEXT NOT NULL,
