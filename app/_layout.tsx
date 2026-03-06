@@ -46,10 +46,10 @@ function RootLayoutNav() {
           name="onboarding" 
           options={{ 
             gestureEnabled: false,
+            presentation: 'fullScreenModal',
           }} 
         />
       </Stack>
-      {/* Note: Onboarding redirect handled via useEffect above */}
     </View>
   );
 }

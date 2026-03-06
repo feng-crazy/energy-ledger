@@ -7,6 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Alert,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, X, Check, ChevronRight } from 'lucide-react-native';
@@ -19,7 +21,7 @@ import { PRESET_VISIONS, Vision } from '@/types';
 
 export default function VisionPage() {
   const router = useRouter();
-  const { visions, addVision, updateVision, deleteVision } = useApp();
+  const { visions, addVision, updateVision, deleteVision, hasOnboarded, completeOnboarding } = useApp();
   
   const [showAdd, setShowAdd] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
@@ -33,7 +35,23 @@ export default function VisionPage() {
   const [expandedDescId, setExpandedDescId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingDetail, setEditingDetail] = useState('');
+  const [editingDescId, setEditingDescId] = useState<string | null>(null);
+  const [editingDescText, setEditingDescText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  
+  // Helper function to show alert (works on web too)
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      setTimeout(() => {
+        alert(`${title}\n\n${message}`);
+      }, 100);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+  
+  // 核心规则：愿景数量为 0 时不能退出
+  const canExit = visions.length > 0;
   
   const handleAddVision = async () => {
     setError(null);
@@ -141,6 +159,33 @@ export default function VisionPage() {
   };
   
   const handleRemove = async (id: string) => {
+    const visionToDelete = visions.find(v => v.id === id);
+    if (!visionToDelete) return;
+    
+    // 任何删除操作都需要确认，防止误删
+    const confirmed = await new Promise<boolean>((resolve) => {
+      if (Platform.OS === 'web') {
+        const result = confirm(
+          `确定要删除 "${visionToDelete.title}" 吗？`
+        );
+        resolve(result);
+      } else {
+        Alert.alert(
+          '确认删除',
+          `确定要删除 "${visionToDelete.title}" 吗？`,
+          [
+            { text: '取消', style: 'cancel', onPress: () => resolve(false) },
+            { text: '删除', style: 'destructive', onPress: () => resolve(true) },
+          ]
+        );
+      }
+    });
+    
+    if (!confirmed) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+    
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await deleteVision(id);
     if (expandedId === id) setExpandedId(null);
@@ -151,9 +196,53 @@ export default function VisionPage() {
     setEditingId(null);
   };
   
+  const handleSaveDesc = async (id: string) => {
+    // 验证长度限制
+    const descLength = editingDescText.replace(/[^\u4e00-\u9fa5]/g, '').length;
+    if (descLength > 120) {
+      setError('概念描述最多 120 个汉字');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+    await updateVision(id, { desc: editingDescText });
+    setEditingDescId(null);
+    setError(null);
+  };
+  
   const availablePresets = PRESET_VISIONS.filter(
     p => !visions.find(v => v.id === p.id)
   );
+  
+  const handleBack = () => {
+    if (!canExit) {
+      showAlert(
+        '需要设置愿景',
+        '请至少保留 1 个愿景才能离开，愿景是你能量记录的方向。'
+      );
+      return;
+    }
+    router.back();
+  };
+  
+  const handleSave = async () => {
+    if (!canExit) {
+      showAlert(
+        '需要设置愿景',
+        '请至少保留 1 个愿景，愿景是你能量记录的方向。'
+      );
+      return;
+    }
+    
+    if (!hasOnboarded) {
+      // Complete onboarding and go to home
+      await completeOnboarding();
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/');
+    } else {
+      // Just go back
+      router.back();
+    }
+  };
   
   return (
     <View style={styles.container}>
@@ -161,7 +250,7 @@ export default function VisionPage() {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={handleBack}
         >
           <ArrowLeft size={18} color={colors.white.primary} />
         </TouchableOpacity>
@@ -173,9 +262,9 @@ export default function VisionPage() {
         
         <TouchableOpacity
           style={styles.saveButton}
-          onPress={() => router.back()}
+          onPress={handleSave}
         >
-          <Text style={styles.saveButtonText}>保存</Text>
+          <Text style={styles.saveButtonText}>{!hasOnboarded ? '完成' : '保存'}</Text>
         </TouchableOpacity>
       </View>
       
@@ -183,12 +272,18 @@ export default function VisionPage() {
         {/* Intro */}
         <Card style={styles.introCard} variant="flow">
           <Text style={styles.introText}>
-            愿景是你能量流动的方向。越具体的愿景，越能帮助你在日常中做出清醒的选择，最多只能设定 3 个愿景。
+            {!hasOnboarded 
+              ? '愿景是你能量流动的方向。请至少选择 1 个愿景（最多 3 个），这些将作为你能量记录的锚点。设置完成后才能继续。'
+              : '愿景是你能量流动的方向。越具体的愿景，越能帮助你在日常中做出清醒的选择，最多只能设定 3 个愿景。'
+            }
           </Text>
         </Card>
         
         {/* Active Visions */}
-        <Text style={styles.sectionLabel}>已设定 {visions.length} 个愿景</Text>
+        <Text style={styles.sectionLabel}>
+          {!hasOnboarded ? '请选择' : '已设定'} {visions.length} 个愿景
+          {!hasOnboarded && visions.length === 0 ? '（至少 1 个）' : ''}
+        </Text>
         
         {visions.map((vision) => (
           <Card key={vision.id} style={styles.visionCard}>
@@ -245,7 +340,40 @@ export default function VisionPage() {
               <View style={styles.visionDetail}>
                 <View style={styles.detailSection}>
                   <Text style={styles.detailSectionTitle}>概念描述</Text>
-                  <Text style={styles.detailSectionText}>{vision.desc}</Text>
+                  {editingDescId === vision.id ? (
+                    <View>
+                      <TextInput
+                        style={styles.detailInput}
+                        value={editingDescText}
+                        onChangeText={setEditingDescText}
+                        placeholder="描述这个愿景的核心概念..."
+                        placeholderTextColor={colors.white.muted}
+                        multiline
+                        numberOfLines={3}
+                      />
+                      <Button
+                        title="完成"
+                        onPress={() => handleSaveDesc(vision.id)}
+                        size="sm"
+                        variant="flow"
+                      />
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.detailDisplay}
+                      onPress={() => {
+                        setEditingDescId(vision.id);
+                        setEditingDescText(vision.desc || '');
+                      }}
+                    >
+                      <Text style={[
+                        styles.detailSectionText,
+                        !vision.desc && styles.detailPlaceholder,
+                      ]}>
+                        {vision.desc || '点击添加概念描述...'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 
                 <View style={styles.detailSection}>
