@@ -30,6 +30,7 @@ export default function VisionPage() {
   const [customEmoji, setCustomEmoji] = useState('🎯');
   const [detailInput, setDetailInput] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedDescId, setExpandedDescId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingDetail, setEditingDetail] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -199,11 +200,26 @@ export default function VisionPage() {
                 <View style={styles.visionEmojiContainer}>
                   <Text style={styles.visionEmoji}>{vision.emoji}</Text>
                 </View>
-                <View>
+                <View style={styles.visionTextContainer}>
                   <Text style={styles.visionTitle}>{vision.title}</Text>
                   <View style={styles.visionMeta}>
                     <Text style={styles.visionLabel}>{vision.label}</Text>
-                    <Text style={styles.visionDesc}>{vision.desc}</Text>
+                    <TouchableOpacity
+                      onPress={() => setExpandedDescId(expandedDescId === vision.id ? null : vision.id)}
+                      activeOpacity={0.7}
+                      style={styles.visionDescTouch}
+                    >
+                      <Text
+                        style={[
+                          styles.visionDesc,
+                          expandedDescId === vision.id && styles.visionDescExpanded,
+                        ]}
+                        numberOfLines={expandedDescId === vision.id ? 0 : 1}
+                        ellipsizeMode="tail"
+                      >
+                        {vision.desc}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
@@ -227,42 +243,49 @@ export default function VisionPage() {
             
             {expandedId === vision.id && (
               <View style={styles.visionDetail}>
-                <Text style={styles.detailLabel}>愿景详述（越具体越好）</Text>
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailSectionTitle}>概念描述</Text>
+                  <Text style={styles.detailSectionText}>{vision.desc}</Text>
+                </View>
                 
-                {editingId === vision.id ? (
-                  <View>
-                    <TextInput
-                      style={styles.detailInput}
-                      value={editingDetail}
-                      onChangeText={setEditingDetail}
-                      placeholder="描述你的愿景..."
-                      placeholderTextColor={colors.white.muted}
-                      multiline
-                      numberOfLines={4}
-                    />
-                    <Button
-                      title="完成"
-                      onPress={() => handleSaveDetail(vision.id)}
-                      size="sm"
-                      variant="flow"
-                    />
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.detailDisplay}
-                    onPress={() => {
-                      setEditingId(vision.id);
-                      setEditingDetail(vision.detail || '');
-                    }}
-                  >
-                    <Text style={[
-                      styles.detailText,
-                      !vision.detail && styles.detailPlaceholder,
-                    ]}>
-                      {vision.detail || '点击添加愿景详述，让它更具体、更有力量...'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailLabel}>愿景详述（越具体越好）</Text>
+                  
+                  {editingId === vision.id ? (
+                    <View>
+                      <TextInput
+                        style={styles.detailInput}
+                        value={editingDetail}
+                        onChangeText={setEditingDetail}
+                        placeholder="描述你的愿景..."
+                        placeholderTextColor={colors.white.muted}
+                        multiline
+                        numberOfLines={4}
+                      />
+                      <Button
+                        title="完成"
+                        onPress={() => handleSaveDetail(vision.id)}
+                        size="sm"
+                        variant="flow"
+                      />
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.detailDisplay}
+                      onPress={() => {
+                        setEditingId(vision.id);
+                        setEditingDetail(vision.detail || '');
+                      }}
+                    >
+                      <Text style={[
+                        styles.detailText,
+                        !vision.detail && styles.detailPlaceholder,
+                      ]}>
+                        {vision.detail || '点击添加愿景详述，让它更具体、更有力量...'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             )}
           </Card>
@@ -532,6 +555,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
+    minWidth: 0,
   },
   visionEmojiContainer: {
     width: 40,
@@ -556,6 +581,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginTop: 2,
+    flex: 1,
+  },
+  visionTextContainer: {
+    flex: 1,
+    minWidth: 0,
   },
   visionLabel: {
     fontSize: 11,
@@ -564,10 +594,21 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: borderRadius.sm,
     backgroundColor: 'rgba(0, 180, 180, 0.15)',
+    flexShrink: 0,
   },
   visionDesc: {
     fontSize: 11,
     color: colors.white.muted,
+    flexShrink: 1,
+  },
+  visionDescTouch: {
+    flexShrink: 1,
+  },
+  visionDescExpanded: {
+    fontSize: 12,
+    color: colors.white.secondary,
+    lineHeight: 20,
+    marginTop: 4,
   },
   visionActions: {
     flexDirection: 'row',
@@ -589,6 +630,22 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  detailSection: {
+    marginBottom: 16,
+  },
+  detailSectionTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.white.muted,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailSectionText: {
+    fontSize: 13,
+    color: colors.white.secondary,
+    lineHeight: 22,
   },
   detailLabel: {
     fontSize: 11,

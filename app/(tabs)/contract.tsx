@@ -26,71 +26,88 @@ const failTags = ['📱 手机干扰', '😫 太累了', '📅 太忙', '🌧️
 
 export default function ContractPage() {
   const router = useRouter();
-  const { visions, activeCommitment, stats, addCommitment, completeCommitment, failCommitment } = useApp();
+  const { visions, activeCommitments, stats, addCommitment, completeCommitment, failCommitment } = useApp();
   
   const [scene, setScene] = useState<Scene>('active');
   const [showFailModal, setShowFailModal] = useState(false);
   const [failReason, setFailReason] = useState('');
   const [failTag, setFailTag] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [countdown, setCountdown] = useState('');
+  const [countdowns, setCountdowns] = useState<Record<string, string>>({});
   
   // Create form state
   const [commitment, setCommitment] = useState('');
   const [timeOption, setTimeOption] = useState('今天内');
   const [selectedVision, setSelectedVision] = useState<string | null>(null);
   
-  // Update scene based on active commitment
+  // Update scene based on active commitments
   useEffect(() => {
-    if (activeCommitment) {
+    if (activeCommitments.length > 0) {
       setScene('active');
     } else {
       setScene('empty');
     }
-  }, [activeCommitment]);
+  }, [activeCommitments]);
   
-  // Countdown timer
+  // Countdown timers for each commitment
   useEffect(() => {
-    if (!activeCommitment) return;
+    if (activeCommitments.length === 0) return;
     
-    const updateCountdown = () => {
+    const updateCountdowns = () => {
       const now = Date.now();
-      const remaining = activeCommitment.deadline - now;
+      const newCountdowns: Record<string, string> = {};
       
-      if (remaining <= 0) {
-        setCountdown('00 : 00 : 00');
-        return;
-      }
+      activeCommitments.forEach((c: Commitment) => {
+        const remaining = c.deadline - now;
+        
+        if (remaining <= 0) {
+          newCountdowns[c.id] = '00 : 00 : 00';
+          return;
+        }
+        
+        const hours = Math.floor(remaining / (1000 * 60 * 60));
+        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+        
+        newCountdowns[c.id] = `${hours.toString().padStart(2, '0')} : ${minutes.toString().padStart(2, '0')} : ${seconds.toString().padStart(2, '0')}`;
+      });
       
-      const hours = Math.floor(remaining / (1000 * 60 * 60));
-      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
-      
-      setCountdown(`${hours.toString().padStart(2, '0')} : ${minutes.toString().padStart(2, '0')} : ${seconds.toString().padStart(2, '0')}`);
+      setCountdowns(newCountdowns);
     };
     
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
+    updateCountdowns();
+    const interval = setInterval(updateCountdowns, 1000);
     return () => clearInterval(interval);
-  }, [activeCommitment]);
+  }, [activeCommitments]);
   
-  const handleDone = async () => {
-    if (!activeCommitment) return;
+  const handleDone = async (commitmentId: string) => {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await completeCommitment(activeCommitment.id);
+    await completeCommitment(commitmentId);
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);
-      setScene('empty');
+      if (activeCommitments.length <= 1) {
+        setScene('empty');
+      }
     }, 2000);
   };
   
+  const [pendingFailCommitmentId, setPendingFailCommitmentId] = useState<string | null>(null);
+  
+  const handleFailClick = (commitmentId: string) => {
+    setPendingFailCommitmentId(commitmentId);
+    setShowFailModal(true);
+  };
+  
   const handleFailSubmit = async () => {
-    if (!activeCommitment) return;
+    if (!pendingFailCommitmentId) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await failCommitment(activeCommitment.id, failReason, failTag || undefined);
+    await failCommitment(pendingFailCommitmentId, failReason, failTag || undefined);
     setShowFailModal(false);
-    setScene('empty');
+    setPendingFailCommitmentId(null);
+    if (activeCommitments.length <= 1) {
+      setScene('empty');
+    }
   };
   
   const handleCreate = async () => {
@@ -170,7 +187,7 @@ export default function ContractPage() {
         <View style={styles.headerSpacer} />
       </View>
       
-      {scene === 'active' && activeCommitment && (
+      {scene === 'active' && activeCommitments.length > 0 && (
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
           {/* Energy Overview */}
           <Card style={styles.energyCard} variant="flow">
@@ -205,45 +222,57 @@ export default function ContractPage() {
             </Text>
           </Card>
           
-          {/* Countdown */}
-          <View style={styles.countdownCard}>
-            <Text style={styles.countdownEmoji}>⏰</Text>
-            <View>
-              <Text style={styles.countdownLabel}>剩余时间</Text>
-              <Text style={styles.countdownValue}>{countdown}</Text>
-            </View>
-          </View>
-          
-          {/* Commitment Card */}
-          <Card style={styles.commitmentCard}>
-            <Text style={styles.commitmentLabel}>📝 我的微承诺</Text>
-            <Text style={styles.commitmentText}>"{activeCommitment.content}"</Text>
-            <View style={styles.commitmentMeta}>
-              <View style={styles.visionTag}>
-                <Text style={styles.visionTagEmoji}>{getVisionEmoji(activeCommitment.visionId)}</Text>
-                <Text style={styles.visionTagText}>绑定愿景：{getVisionLabel(activeCommitment.visionId)}</Text>
+          {activeCommitments.map((commitment) => (
+            <View key={commitment.id}>
+              <View style={styles.countdownCard}>
+                <Text style={styles.countdownEmoji}>⏰</Text>
+                <View>
+                  <Text style={styles.countdownLabel}>剩余时间</Text>
+                  <Text style={styles.countdownValue}>{countdowns[commitment.id] || '00 : 00 : 00'}</Text>
+                </View>
+              </View>
+              
+              <Card style={styles.commitmentCard}>
+                <Text style={styles.commitmentLabel}>📝 我的微承诺</Text>
+                <Text style={styles.commitmentText}>"{commitment.content}"</Text>
+                <View style={styles.commitmentMeta}>
+                  <View style={styles.visionTag}>
+                    <Text style={styles.visionTagEmoji}>{getVisionEmoji(commitment.visionId)}</Text>
+                    <Text style={styles.visionTagText}>绑定愿景：{getVisionLabel(commitment.visionId)}</Text>
+                  </View>
+                </View>
+              </Card>
+              
+              <View style={styles.actionButtons}>
+                <Button
+                  title="做到了"
+                  onPress={() => handleDone(commitment.id)}
+                  variant="success"
+                  size="lg"
+                  icon={<Check size={18} color="#FFF" />}
+                  style={styles.doneButton}
+                />
+                <Button
+                  title="没做到"
+                  onPress={() => handleFailClick(commitment.id)}
+                  variant="secondary"
+                  size="lg"
+                  icon={<X size={18} color={colors.white.tertiary} />}
+                />
               </View>
             </View>
-          </Card>
+          ))}
           
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
+          {activeCommitments.length < 3 && (
             <Button
-              title="做到了"
-              onPress={handleDone}
-              variant="success"
+              title="+ 添加新承诺"
+              onPress={() => setScene('create')}
+              variant="flow"
               size="lg"
-              icon={<Check size={18} color="#FFF" />}
-              style={styles.doneButton}
+              icon={<Plus size={18} color="#FFF" />}
+              style={styles.addCommitmentButton}
             />
-            <Button
-              title="没做到"
-              onPress={() => setShowFailModal(true)}
-              variant="secondary"
-              size="lg"
-              icon={<X size={18} color={colors.white.tertiary} />}
-            />
-          </View>
+          )}
         </ScrollView>
       )}
       
@@ -559,6 +588,9 @@ const styles = StyleSheet.create({
   },
   doneButton: {
     flex: 1,
+  },
+  addCommitmentButton: {
+    marginTop: 16,
   },
   emptyContainer: {
     flex: 1,

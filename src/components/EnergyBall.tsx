@@ -228,7 +228,7 @@ export function EnergyBall({ score, onPress }: EnergyBallProps) {
             <Text style={[styles.scoreText, { color: '#FFFFFF' }]}>
               {score > 0 ? '+' : ''}{score}
             </Text>
-            <Text style={styles.scoreLabel}>能量值</Text>
+            <Text style={styles.scoreLabel}>今日能量值</Text>
           </View>
         </Animated.View>
       </View>

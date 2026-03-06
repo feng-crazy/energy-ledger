@@ -68,6 +68,14 @@ export async function initDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_records_createdAt ON records(createdAt);
     CREATE INDEX IF NOT EXISTS idx_commitments_status ON commitments(status);
   `);
+  
+  try {
+    await db.runAsync(`
+      UPDATE visions SET title = emoji || ' - ' || label WHERE title IS NULL OR title = '';
+    `);
+  } catch (error) {
+    console.warn('Vision title migration failed:', error);
+  }
 }
 
 // ==================== Utility Functions ====================
@@ -107,8 +115,8 @@ export async function addVision(vision: Omit<Vision, 'id' | 'createdAt' | 'updat
   
   if (!db) await initDatabase();
   await db.runAsync(
-    'INSERT INTO visions (id, emoji, label, desc, detail, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [newVision.id, newVision.emoji, newVision.label, newVision.desc, newVision.detail || null, newVision.createdAt, newVision.updatedAt]
+    'INSERT INTO visions (id, title, emoji, label, desc, detail, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [newVision.id, newVision.title, newVision.emoji, newVision.label, newVision.desc, newVision.detail || null, newVision.createdAt, newVision.updatedAt]
   );
   
   return newVision;
@@ -252,17 +260,17 @@ export async function updateRecordAiReport(id: string, report: EnergyRecord['aiR
 
 // ==================== Commitment CRUD ====================
 
-export async function getActiveCommitment(): Promise<Commitment | null> {
+export async function getActiveCommitments(): Promise<Commitment[]> {
   if (isWeb) {
     const commitments = await getCommitments();
-    return commitments.find(c => c.status === 'active') || null;
+    return commitments.filter(c => c.status === 'active').slice(0, 3);
   }
   
   if (!db) await initDatabase();
-  const result = await db.getFirstAsync<Commitment>(
-    "SELECT * FROM commitments WHERE status = 'active' ORDER BY createdAt DESC LIMIT 1"
+  const result = await db.getAllAsync<Commitment>(
+    "SELECT * FROM commitments WHERE status = 'active' ORDER BY createdAt ASC LIMIT 3"
   );
-  return result || null;
+  return result || [];
 }
 
 export async function getCommitments(limit?: number): Promise<Commitment[]> {

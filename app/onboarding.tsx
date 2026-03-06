@@ -30,7 +30,7 @@ export default function OnboardingPage() {
     setSelectedVisions(prev => 
       prev.includes(id) 
         ? prev.filter(v => v !== id)
-        : prev.length < 5 
+        : prev.length < 3 
           ? [...prev, id]
           : prev
     );
@@ -103,7 +103,7 @@ export default function OnboardingPage() {
         <Animated.View entering={SlideInRight} style={styles.content}>
           <Text style={styles.stepTitle}>选择你的核心愿景</Text>
           <Text style={styles.stepSubtitle}>
-            选择 1-5 个你最重视的领域，这些将作为你能量记录的锚点
+            选择 1-3 个你最重视的领域，这些将作为你能量记录的锚点
           </Text>
           
           <ScrollView style={styles.visionList} contentContainerStyle={styles.visionListContent}>
@@ -141,7 +141,7 @@ export default function OnboardingPage() {
           
           <View style={styles.bottomBar}>
             <Text style={styles.selectedCount}>
-              已选择 {selectedVisions.length} / 5 个愿景
+              已选择 {selectedVisions.length} / 3 个愿景
             </Text>
             <Button
               title="完成设定"

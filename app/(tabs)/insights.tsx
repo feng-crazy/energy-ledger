@@ -1,11 +1,13 @@
 // Insights Page - 洞察分析
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Sparkles, ChevronRight, Brain } from 'lucide-react-native';
@@ -13,32 +15,15 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useApp } from '@/store/AppContext';
 import { Card } from '@/components/Card';
-import { colors, typography, spacing, borderRadius } from '@/utils/theme';
-import { DRAIN_STATES, FLOW_STATES, AiReport } from '@/types';
-
-// Mock AI report generator
-const generateAiReport = async (record: any): Promise<AiReport> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 2500));
-  
-  const isFlow = record.type === 'flow';
-  
-  if (isFlow) {
-    return {
-      philosophy: "你所描述的心流体验，与庄子所言'无为而无不为'高度契合。当自我意识退场，真正的创造力才能涌现。这不是偶然，而是你长期积累的厚积薄发。",
-      neuroscience: "心流状态激活了大脑的默认模式网络与执行网络的同步协作，前额叶皮层的自我监控功能降低，使得创造性思维得以自由流动。多巴胺与去甲肾上腺素的平衡分泌是这种体验的神经基础。",
-      suggestion: "建议记录触发这次心流的前置条件（时间、环境、身体状态），尝试将其系统化，创造可复制的心流触发仪式。",
-      generatedAt: Date.now(),
-    };
-  } else {
-    return {
-      philosophy: "你所描述的逃避行为背后，是一种存在主义式的焦虑——面对自由时的不安（萨特语）。刷屏是一种现代人对抗'虚无感'的临时出口，但它带来的是更深的空洞。",
-      neuroscience: "短视频的即时奖励机制持续激活多巴胺系统，形成强化回路。持续注意力碎片化会削弱前额叶的自我调节能力，使'停下来'变得越来越困难——这是神经可塑性的双刃剑。",
-      suggestion: "睡前30分钟设定一个'数字宵禁'。用'5秒法则'（倒数5-4-3-2-1后立即放下手机）打破自动化行为模式。焦虑感会在最初的90秒内消退，坚持过去就是突破。",
-      generatedAt: Date.now(),
-    };
-  }
-};
+import { colors, borderRadius } from '@/utils/theme';
+import { generateAiReport } from '@/utils/aiReport';
+import {
+  getStateLabel,
+  getStateEmoji,
+  getVisionLabel,
+  getVisionEmoji,
+  formatDateTime,
+} from '@/utils/recordHelpers';
 
 export default function InsightsPage() {
   const router = useRouter();
@@ -64,41 +49,23 @@ export default function InsightsPage() {
     }
   };
   
-  const getStateLabel = (type: string, stateId: string) => {
-    const states = type === 'flow' ? FLOW_STATES : DRAIN_STATES;
-    const state = states.find(s => s.id === stateId);
-    return state?.label || '自定义';
-  };
+  // Pagination state
+  const PAGE_SIZE = 20;
+  const [displayedCount, setDisplayedCount] = useState(PAGE_SIZE);
   
-  const getStateEmoji = (type: string, stateId: string) => {
-    const states = type === 'flow' ? FLOW_STATES : DRAIN_STATES;
-    const state = states.find(s => s.id === stateId);
-    return state?.emoji || '✍️';
-  };
+  // Get displayed records (pagination)
+  const displayedRecords = useMemo(() => {
+    return records.slice(0, displayedCount);
+  }, [records, displayedCount]);
   
-  const getVisionLabel = (visionId: string) => {
-    const vision = visions.find(v => v.id === visionId);
-    return vision?.label || '';
-  };
+  // Check if there are more records to load
+  const hasMoreRecords = displayedCount < records.length;
   
-  const getVisionEmoji = (visionId: string) => {
-    const vision = visions.find(v => v.id === visionId);
-    return vision?.emoji || '🎯';
-  };
-  
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const isYesterday = date.toDateString() === yesterday.toDateString();
-    
-    const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-    
-    if (isToday) return `今天 ${timeStr}`;
-    if (isYesterday) return `昨天 ${timeStr}`;
-    return `${date.getMonth() + 1}/${date.getDate()} ${timeStr}`;
+  // Load more records
+  const loadMore = () => {
+    if (hasMoreRecords) {
+      setDisplayedCount(prev => prev + PAGE_SIZE);
+    }
   };
   
   return (
@@ -128,16 +95,15 @@ export default function InsightsPage() {
         </View>
       </View>
       
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {records.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>📝</Text>
-            <Text style={styles.emptyTitle}>还没有记录</Text>
-            <Text style={styles.emptySubtitle}>开始记录你的能量状态，AI 将为你提供深度洞察</Text>
-          </View>
-        ) : (
-          records.map((record) => (
-            <Card key={record.id} style={styles.recordCard}>
+      <FlatList
+        data={displayedRecords}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item: record }) => (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push(`/record-detail?id=${record.id}`)}
+          >
+            <Card style={styles.recordCard}>
               {/* Record Header */}
               <View style={styles.recordHeader}>
                 <View style={styles.recordHeaderLeft}>
@@ -148,10 +114,10 @@ export default function InsightsPage() {
                     ]} 
                   />
                   <Text style={styles.recordState}>
-                    {getStateEmoji(record.type, record.bodyStateId)} {getStateLabel(record.type, record.bodyStateId)}
+                    {getStateEmoji(record.type, record.bodyStateId)} {getStateLabel(record.type, record.bodyStateId, record.customBodyState)}
                   </Text>
                 </View>
-                <Text style={styles.recordTime}>{formatTime(record.createdAt)}</Text>
+                <Text style={styles.recordTime}>{formatDateTime(record.createdAt)}</Text>
               </View>
               
               {/* Vision Tags */}
@@ -159,8 +125,8 @@ export default function InsightsPage() {
                 <View style={styles.visionTags}>
                   {record.visions.slice(0, 2).map((visionId) => (
                     <View key={visionId} style={styles.visionTag}>
-                      <Text style={styles.visionTagEmoji}>{getVisionEmoji(visionId)}</Text>
-                      <Text style={styles.visionTagText}>{getVisionLabel(visionId)}</Text>
+                      <Text style={styles.visionTagEmoji}>{getVisionEmoji(visionId, visions)}</Text>
+                      <Text style={styles.visionTagText}>{getVisionLabel(visionId, visions)}</Text>
                     </View>
                   ))}
                 </View>
@@ -239,9 +205,31 @@ export default function InsightsPage() {
                 </View>
               )}
             </Card>
-          ))
+          </TouchableOpacity>
         )}
-      </ScrollView>
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>📝</Text>
+            <Text style={styles.emptyTitle}>还没有记录</Text>
+            <Text style={styles.emptySubtitle}>开始记录你的能量状态，AI 将为你提供深度洞察</Text>
+          </View>
+        }
+        ListFooterComponent={
+          hasMoreRecords ? (
+            <View style={styles.footer}>
+              <ActivityIndicator size="small" color={colors.flow.primary} />
+            </View>
+          ) : (
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>— 没有更多记录了 —</Text>
+            </View>
+          )
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
+      />
     </View>
   );
 }
@@ -469,5 +457,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(0, 220, 200, 0.8)',
     lineHeight: 20,
+  },
+  footer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 12,
+    color: colors.white.muted,
   },
 });

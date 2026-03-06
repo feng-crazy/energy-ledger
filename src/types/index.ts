@@ -2,7 +2,7 @@
 // Data models and types
 
 // 能量记录类型
-export type EnergyType = 'flow' | 'drain' | 'transform';
+export type EnergyType = 'flow' | 'drain';
 
 // 身体状态选项
 export interface BodyState {
@@ -233,6 +233,4 @@ export const ENERGY_SCORES = {
   DRAIN_AWARENESS_BONUS: 10,
   FLOW_BASE: 5,
   FLOW_MULTIPLIER: 1.0,
-  TRANSFORM_BASE: 5,
-  TRANSFORM_MULTIPLIER: 3,
 };

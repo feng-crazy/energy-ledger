@@ -7,7 +7,7 @@ interface AppContextType {
   // State
   visions: Vision[];
   records: EnergyRecord[];
-  activeCommitment: Commitment | null;
+  activeCommitments: Commitment[];
   stats: UserStats;
   hasOnboarded: boolean;
   isLoading: boolean;
@@ -22,7 +22,7 @@ interface AppContextType {
   addRecord: (record: Omit<EnergyRecord, 'id' | 'createdAt'>) => Promise<EnergyRecord>;
   updateRecordAiReport: (id: string, report: EnergyRecord['aiReport']) => Promise<void>;
   
-  refreshActiveCommitment: () => Promise<void>;
+  refreshActiveCommitments: () => Promise<void>;
   addCommitment: (commitment: Omit<Commitment, 'id' | 'createdAt' | 'status'>) => Promise<Commitment>;
   completeCommitment: (id: string) => Promise<void>;
   failCommitment: (id: string, reason?: string, tag?: string) => Promise<void>;
@@ -38,7 +38,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [visions, setVisions] = useState<Vision[]>([]);
   const [records, setRecords] = useState<EnergyRecord[]>([]);
-  const [activeCommitment, setActiveCommitment] = useState<Commitment | null>(null);
+  const [activeCommitments, setActiveCommitments] = useState<Commitment[]>([]);
   const [stats, setStats] = useState<UserStats>({
     totalEnergy: 0,
     streak: 0,
@@ -54,17 +54,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async function loadData() {
       try {
         await Storage.initDatabase();
-        const [loadedVisions, loadedRecords, loadedCommitment, loadedStats, onboarded] = await Promise.all([
+        const [loadedVisions, loadedRecords, loadedCommitments, loadedStats, onboarded] = await Promise.all([
           Storage.getVisions(),
           Storage.getRecords(50),
-          Storage.getActiveCommitment(),
+          Storage.getActiveCommitments(),
           Storage.getUserStats(),
           Storage.getHasOnboarded(),
         ]);
         
         setVisions(loadedVisions);
         setRecords(loadedRecords);
-        setActiveCommitment(loadedCommitment);
+        setActiveCommitments(loadedCommitments);
         setStats(loadedStats);
         setHasOnboarded(onboarded);
       } catch (error) {
@@ -134,20 +134,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
   
   // Commitment actions
-  const refreshActiveCommitment = async () => {
-    const data = await Storage.getActiveCommitment();
-    setActiveCommitment(data);
+  const refreshActiveCommitments = async () => {
+    const data = await Storage.getActiveCommitments();
+    setActiveCommitments(data);
   };
   
   const addCommitment = async (commitment: Omit<Commitment, 'id' | 'createdAt' | 'status'>) => {
     const newCommitment = await Storage.addCommitment(commitment);
-    setActiveCommitment(newCommitment);
+    setActiveCommitments(prev => [...prev, newCommitment]);
     return newCommitment;
   };
   
   const completeCommitment = async (id: string) => {
     await Storage.completeCommitment(id);
-    await refreshActiveCommitment();
+    await refreshActiveCommitments();
     
     // Update stats
     const newCompletedCount = stats.completedCommitments + 1;
@@ -157,7 +157,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   
   const failCommitment = async (id: string, reason?: string, tag?: string) => {
     await Storage.failCommitment(id, reason, tag);
-    await refreshActiveCommitment();
+    await refreshActiveCommitments();
   };
   
   // Stats actions
@@ -182,7 +182,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         visions,
         records,
-        activeCommitment,
+        activeCommitments,
         stats,
         hasOnboarded,
         isLoading,
@@ -193,7 +193,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         refreshRecords,
         addRecord,
         updateRecordAiReport,
-        refreshActiveCommitment,
+        refreshActiveCommitments,
         addCommitment,
         completeCommitment,
         failCommitment,

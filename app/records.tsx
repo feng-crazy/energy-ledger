@@ -14,7 +14,15 @@ import { ArrowLeft } from 'lucide-react-native';
 import { useApp } from '@/store/AppContext';
 import { Card } from '@/components/Card';
 import { colors, borderRadius } from '@/utils/theme';
-import { EnergyRecord, DRAIN_STATES, FLOW_STATES } from '@/types';
+import { EnergyRecord } from '@/types';
+import {
+  getStateLabel,
+  getStateEmoji,
+  getVisionLabel,
+  getVisionEmoji,
+  formatDate,
+  formatTime,
+} from '@/utils/recordHelpers';
 
 const PAGE_SIZE = 2; // 临时改为 2 以便测试分页（原值 20）
 
@@ -56,46 +64,6 @@ export default function RecordsPage() {
     setDisplayedCount(PAGE_SIZE);
   };
 
-  const getStateLabel = (type: string, stateId: string) => {
-    const states = type === 'flow' ? FLOW_STATES : DRAIN_STATES;
-    const state = states.find(s => s.id === stateId);
-    return state?.label || '自定义';
-  };
-
-  const getStateEmoji = (type: string, stateId: string) => {
-    const states = type === 'flow' ? FLOW_STATES : DRAIN_STATES;
-    const state = states.find(s => s.id === stateId);
-    return state?.emoji || '✍️';
-  };
-
-  const getVisionLabel = (visionId: string) => {
-    const vision = visions.find(v => v.id === visionId);
-    return vision?.title || '';
-  };
-
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) {
-      return { label: '今天', showFull: false };
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return { label: '昨天', showFull: false };
-    } else {
-      return { 
-        label: `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`,
-        showFull: true 
-      };
-    }
-  };
-
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-  };
-
   // Group records by date
   const groupedRecords = useMemo(() => {
     const groups: { date: string; dateObj: Date; records: EnergyRecord[]; showFullDate: boolean }[] = [];
@@ -124,17 +92,22 @@ export default function RecordsPage() {
     const dateInfo = formatDate(record.createdAt);
     
     return (
-      <Card key={record.id} style={styles.recordCard}>
-        <View style={styles.recordContent}>
-          <View style={[
-            styles.recordDot,
-            { backgroundColor: record.type === 'flow' ? colors.flow.primary : colors.drain.primary }
-          ]} />
-          <View style={styles.recordMain}>
-            <View style={styles.recordHeader}>
-              <Text style={styles.recordState}>
-                {getStateEmoji(record.type, record.bodyStateId)} {getStateLabel(record.type, record.bodyStateId)}
-              </Text>
+      <TouchableOpacity
+        key={record.id}
+        activeOpacity={0.7}
+        onPress={() => router.push(`/record-detail?id=${record.id}`)}
+      >
+        <Card style={styles.recordCard}>
+          <View style={styles.recordContent}>
+            <View style={[
+              styles.recordDot,
+              { backgroundColor: record.type === 'flow' ? colors.flow.primary : colors.drain.primary }
+            ]} />
+            <View style={styles.recordMain}>
+              <View style={styles.recordHeader}>
+                <Text style={styles.recordState}>
+                  {getStateEmoji(record.type, record.bodyStateId)} {getStateLabel(record.type, record.bodyStateId, record.customBodyState)}
+                </Text>
               <View style={styles.recordTimeContainer}>
                 <Text style={styles.recordDate}>{dateInfo.label}</Text>
                 <Text style={styles.recordTime}>{formatTime(record.createdAt)}</Text>
@@ -144,7 +117,7 @@ export default function RecordsPage() {
               <View style={styles.recordVisions}>
                 {record.visions.slice(0, 2).map(visionId => (
                   <View key={visionId} style={styles.recordVisionTag}>
-                    <Text style={styles.recordVisionText}>{getVisionLabel(visionId)}</Text>
+                    <Text style={styles.recordVisionText}>{getVisionEmoji(visionId, visions)} {getVisionLabel(visionId, visions)}</Text>
                   </View>
                 ))}
                 {record.visions.length > 2 && (
@@ -163,6 +136,7 @@ export default function RecordsPage() {
           </View>
         </View>
       </Card>
+      </TouchableOpacity>
     );
   };
 

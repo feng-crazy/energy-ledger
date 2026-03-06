@@ -16,7 +16,12 @@ import { useApp } from '@/store/AppContext';
 import { EnergyBall } from '@/components/EnergyBall';
 import { Card } from '@/components/Card';
 import { colors, typography, spacing, borderRadius } from '@/utils/theme';
-import { DRAIN_STATES, FLOW_STATES } from '@/types';
+import {
+  getStateLabel,
+  getStateEmoji,
+  getVisionLabel,
+  formatTime,
+} from '@/utils/recordHelpers';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -56,26 +61,9 @@ export default function HomePage() {
     router.push(path as any);
   };
   
-  const handleRecordPress = async (type: 'flow' | 'drain' | 'transform') => {
+  const handleRecordPress = async (type: 'flow' | 'drain') => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(`/record?type=${type}`);
-  };
-  
-  const getStateLabel = (type: string, stateId: string) => {
-    const states = type === 'flow' ? FLOW_STATES : DRAIN_STATES;
-    const state = states.find(s => s.id === stateId);
-    return state?.label || '自定义';
-  };
-  
-  const getStateEmoji = (type: string, stateId: string) => {
-    const states = type === 'flow' ? FLOW_STATES : DRAIN_STATES;
-    const state = states.find(s => s.id === stateId);
-    return state?.emoji || '✍️';
-  };
-  
-  const getVisionLabel = (visionId: string) => {
-    const vision = visions.find(v => v.id === visionId);
-    return vision?.label || '';
   };
   
   const formatTime = (timestamp: number) => {
@@ -87,43 +75,30 @@ export default function HomePage() {
     <View style={styles.container}>
       {/* Header - Fixed */}
       <View style={styles.header}>
-        <View style={styles.menuContainer}>
-          <TouchableOpacity 
-            style={styles.menuButton}
-            onPress={() => setMenuOpen(!menuOpen)}
-          >
-            <View style={styles.statusDot} />
-            <Text style={styles.menuLabel}>功过格</Text>
-            <ChevronDown 
-              size={14} 
-              color={colors.white.muted}
-              style={{ transform: [{ rotate: menuOpen ? '180deg' : '0deg' }] }}
-            />
-          </TouchableOpacity>
-          
-          {menuOpen && (
-            <View style={styles.dropdown}>
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <TouchableOpacity
-                    key={item.path}
-                    style={styles.dropdownItem}
-                    onPress={() => handleNavigate(item.path)}
-                  >
-                    <Icon size={15} color={colors.flow.primary} />
-                    <Text style={styles.dropdownItemText}>{item.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+        {/* Vision Pills */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.visionScroll}
+          contentContainerStyle={styles.visionPills}
+        >
+          {visions.slice(0, 3).map((v) => (
+            <View
+              key={v.id}
+              style={[
+                styles.visionPill,
+                styles.visionPillActive,
+              ]}
+            >
+              <Text style={[
+                styles.visionPillText,
+                styles.visionPillTextActive,
+              ]}>
+                {v.title}
+              </Text>
             </View>
-          )}
-        </View>
-        
-        <View style={styles.energyDisplay}>
-          <Text style={styles.energyLabel}>今日能量</Text>
-          <Text style={styles.energyValue}>+{todayEnergy} pts</Text>
-        </View>
+          ))}
+        </ScrollView>
         
         <TouchableOpacity 
           style={styles.settingsButton}
@@ -143,31 +118,6 @@ export default function HomePage() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Vision Pills */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.visionScroll}
-          contentContainerStyle={styles.visionPills}
-        >
-          {visions.slice(0, 5).map((v) => (
-            <View
-              key={v.id}
-              style={[
-                styles.visionPill,
-                styles.visionPillActive,
-              ]}
-            >
-              <Text style={[
-                styles.visionPillText,
-                styles.visionPillTextActive,
-              ]}>
-                {v.title}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-        
         {/* Energy Ball */}
         <View style={styles.energyBallContainer}>
           <EnergyBall 
@@ -219,22 +169,28 @@ export default function HomePage() {
               )}
             </View>
             {recentRecords.map((record) => (
-              <Card key={record.id} style={styles.recordCard}>
-                <View style={styles.recordContent}>
-                  <View style={[
-                    styles.recordDot,
-                    { backgroundColor: record.type === 'flow' ? colors.flow.primary : colors.drain.primary }
-                  ]} />
-                  <Text style={styles.recordState}>
-                    {getStateEmoji(record.type, record.bodyStateId)} {getStateLabel(record.type, record.bodyStateId)}
-                  </Text>
-                  {record.visions[0] && (
-                    <Text style={styles.recordVision}>{getVisionLabel(record.visions[0])}</Text>
-                  )}
-                  <Text style={styles.recordScore}>+{record.score}</Text>
-                  <Text style={styles.recordTime}>{formatTime(record.createdAt)}</Text>
-                </View>
-              </Card>
+              <TouchableOpacity
+                key={record.id}
+                activeOpacity={0.7}
+                onPress={() => router.push(`/record-detail?id=${record.id}`)}
+              >
+                <Card style={styles.recordCard}>
+                  <View style={styles.recordContent}>
+                    <View style={[
+                      styles.recordDot,
+                      { backgroundColor: record.type === 'flow' ? colors.flow.primary : colors.drain.primary }
+                    ]} />
+                    <Text style={styles.recordState}>
+                      {getStateEmoji(record.type, record.bodyStateId)} {getStateLabel(record.type, record.bodyStateId, record.customBodyState)}
+                    </Text>
+                    {record.visions[0] && (
+                      <Text style={styles.recordVision}>{getVisionLabel(record.visions[0], visions)}</Text>
+                    )}
+                    <Text style={styles.recordScore}>+{record.score}</Text>
+                    <Text style={styles.recordTime}>{formatTime(record.createdAt)}</Text>
+                  </View>
+                </Card>
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -261,70 +217,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingTop: 56,
-    paddingBottom: spacing.sm,
-  },
-  menuContainer: {
-    position: 'relative',
-  },
-  menuButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.flow.primary,
-    shadowColor: colors.flow.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 3,
-  },
-  menuLabel: {
-    fontSize: 13,
-    color: colors.white.secondary,
-  },
-  dropdown: {
-    position: 'absolute',
-    top: 48,
-    left: 0,
-    minWidth: 160,
-    borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(15, 20, 50, 0.95)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: spacing.xs,
-    zIndex: 50,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  dropdownItemText: {
-    fontSize: 13,
-    color: colors.white.secondary,
-  },
-  energyDisplay: {
-    alignItems: 'center',
-  },
-  energyLabel: {
-    fontSize: 12,
-    color: colors.white.muted,
-  },
-  energyValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.flow.primary,
+    paddingBottom: spacing.xs,
   },
   settingsButton: {
     width: 36,
@@ -341,7 +234,7 @@ const styles = StyleSheet.create({
     height: 20,
   },
   visionScroll: {
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
   },
   visionPills: {
     paddingHorizontal: spacing.xl,
@@ -451,20 +344,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: 'rgba(0, 180, 180, 0.7)',
     marginTop: 4,
-  },
-  transformButton: {
-    position: 'absolute',
-    top: -16,
-    left: '50%',
-    marginLeft: -24,
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 200, 0, 0.2)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 200, 0, 0.6)',
   },
   recentRecords: {
     paddingHorizontal: 16,

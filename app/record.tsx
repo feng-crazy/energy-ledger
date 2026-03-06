@@ -50,9 +50,6 @@ export default function RecordPage() {
   const states = recordType === 'drain' ? DRAIN_STATES : FLOW_STATES;
   
   const calculateScore = (): number => {
-    if (recordType === 'transform') {
-      return ENERGY_SCORES.TRANSFORM_BASE * ENERGY_SCORES.TRANSFORM_MULTIPLIER;
-    }
     if (recordType === 'drain') {
       return ENERGY_SCORES.DRAIN_BASE + ENERGY_SCORES.DRAIN_AWARENESS_BONUS;
     }
