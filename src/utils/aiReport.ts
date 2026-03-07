@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { AiReport, EnergyRecord, AiConfig } from '@/types';
+import { AiReport, EnergyRecord, AiConfig, Vision } from '@/types';
 
 const isWeb = Platform.OS === 'web';
 
@@ -28,17 +28,41 @@ const SYSTEM_PROMPT = `你是一位融合心理学、灵性修行和神经科学
 ## 个性化建议
 [内容]`;
 
-function buildUserPrompt(record: EnergyRecord): string {
+function buildUserPrompt(record: EnergyRecord, visions?: Vision[]): string {
   const typeText = record.type === 'flow' ? '聚能态（心流/专注/积极）' : '耗散态（消耗/逃避/消极）';
   const bodyStateText = record.customBodyState || record.bodyStateId;
-  const visionsText = record.visions.length > 0 ? `相关愿景: ${record.visions.join(', ')}` : '';
+
+  // Build vision details if visions array is provided
+  let visionsDetailText = '';
+  if (record.visions.length > 0) {
+    if (visions && visions.length > 0) {
+      // Find full vision objects by id
+      const matchedVisions = record.visions
+        .map(id => visions.find(v => v.id === id))
+        .filter((v): v is Vision => v !== undefined);
+
+      if (matchedVisions.length > 0) {
+        visionsDetailText = matchedVisions.map(v => {
+          const parts = [`${v.emoji} ${v.title}`];
+          if (v.desc) parts.push(`概念：${v.desc}`);
+          if (v.detail) parts.push(`详细：${v.detail}`);
+          return parts.join('\n  ');
+        }).join('\n\n');
+      }
+    } else {
+      // Fallback to just IDs if no visions array provided
+      visionsDetailText = record.visions.join(', ');
+    }
+  }
+
+  const visionsText = visionsDetailText ? `相关愿景:\n${visionsDetailText}` : '';
   const journalText = record.journal || '无详细记录';
 
   return `用户刚才记录了一次${typeText}体验：
 
-身体状态: ${bodyStateText}
-${visionsText}
-日志内容: ${journalText}
+身体状态：${bodyStateText}
+愿景信息：${visionsText}
+日志内容：${journalText}
 
 请从心理学、神经科学、个性化建议三个维度给出深度分析。`;
 }
@@ -85,7 +109,7 @@ function parseAiResponse(content: string): AiReport {
   };
 }
 
-export async function generateAiReport(record: EnergyRecord, config: AiConfig): Promise<AiReport> {
+export async function generateAiReport(record: EnergyRecord, config: AiConfig, visions?: Vision[]): Promise<AiReport> {
   // Safety check: should not be called in production web
   if (!isAiReportAvailable()) {
     throw new Error('AI 报告功能在 Web 端不可用');
@@ -103,7 +127,7 @@ export async function generateAiReport(record: EnergyRecord, config: AiConfig): 
       model: config.model,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserPrompt(record) },
+        { role: 'user', content: buildUserPrompt(record, visions) },
       ],
       temperature: 0.7,
       max_tokens: 1000,
@@ -112,7 +136,7 @@ export async function generateAiReport(record: EnergyRecord, config: AiConfig): 
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`AI API 请求失败: ${response.status} - ${errorText}`);
+    throw new Error(`AI API 请求失败：${response.status} - ${errorText}`);
   }
 
   const data = await response.json();

@@ -69,7 +69,7 @@ export default function InsightsPage() {
     setAnalyzingId(recordId);
 
     try {
-      const report = await generateAiReport(record, aiConfig);
+      const report = await generateAiReport(record, aiConfig, visions);
       await updateRecordAiReport(recordId, report);
     } catch (error) {
       console.error('Failed to generate AI report:', error);
