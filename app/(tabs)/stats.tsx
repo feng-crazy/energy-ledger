@@ -8,8 +8,6 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
 import { useApp } from '@/store/AppContext';
 import { Card } from '@/components/Card';
 import { colors, typography, spacing, borderRadius } from '@/utils/theme';
@@ -19,7 +17,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const periods = ['今日', '本周'];
 
 export default function StatsPage() {
-  const router = useRouter();
   const { records, visions, stats } = useApp();
   const [period, setPeriod] = useState(0);
   
@@ -108,16 +105,10 @@ export default function StatsPage() {
   const chartData = getChartData();
   const radarData = getRadarData();
   
-  return (
+return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <ArrowLeft size={18} color={colors.white.primary} />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>熵减热力图</Text>
       </View>
       
@@ -307,18 +298,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     paddingHorizontal: 20,
     paddingTop: 56,
     paddingBottom: 16,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   headerTitle: {
     fontSize: 16,

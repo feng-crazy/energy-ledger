@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Sparkles, ChevronRight, Brain } from 'lucide-react-native';
+import { Sparkles, ChevronRight, Brain } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useApp } from '@/store/AppContext';
@@ -68,16 +68,10 @@ export default function InsightsPage() {
     }
   };
   
-  return (
+return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <ArrowLeft size={18} color={colors.white.primary} />
-        </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>洞察分析</Text>
           <Text style={styles.headerSubtitle}>你的私人能量教练</Text>
@@ -240,20 +234,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     paddingHorizontal: 20,
     paddingTop: 56,
     paddingBottom: 16,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   headerTitle: {
     fontSize: 16,
