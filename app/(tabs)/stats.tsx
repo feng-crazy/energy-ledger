@@ -73,24 +73,12 @@ export default function StatsPage() {
   const getRadarData = (): RadarData[] => {
     if (visions.length === 0) return [];
     
-    // 计算每个愿景的总能量
-    const visionScores = visions.map(vision => {
-      const visionRecords = records.filter(r => r.visions.includes(vision.id));
-      const totalScore = visionRecords.reduce((sum, r) => sum + r.score, 0);
-      return { vision, totalScore };
-    });
-    
-    // 使用100分作为基准阶段，进度条显示当前阶段的完成度（1-100）
-    // 当 totalScore 是100的倍数时，进度条应该显示100（满）
-    // 阶段数 = Math.floor(totalScore / 100), 进度值 = totalScore % 100 或 100
-    return visionScores.map(({ vision, totalScore }) => {
+    return visions.map(vision => {
+      const totalScore = vision.energyScore;
       const stage = Math.floor(totalScore / 100) + 1;
-      // 如果 totalScore > 0 且余数为0，说明刚好完成一个阶段，进度条显示100
       const progressValue = totalScore > 0 && totalScore % 100 === 0 
         ? 100 
         : totalScore % 100;
-      
-      console.log(`[Radar] 愿景: ${vision.title}, 总分: ${totalScore}, 阶段: ${stage}, 进度: ${progressValue}%`);
       
       return {
         vision: vision.title,

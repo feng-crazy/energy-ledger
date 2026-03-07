@@ -53,7 +53,9 @@ export default function RecordPage() {
     if (recordType === 'drain') {
       return ENERGY_SCORES.DRAIN_BASE + ENERGY_SCORES.DRAIN_AWARENESS_BONUS;
     }
-    return ENERGY_SCORES.FLOW_BASE;
+    return selectedVisions.length > 0 
+      ? ENERGY_SCORES.RECORD_WITH_VISION_BONUS 
+      : ENERGY_SCORES.RECORD_BASE;
   };
   
   const toggleVision = (id: string) => {

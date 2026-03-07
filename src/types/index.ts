@@ -24,6 +24,7 @@ export interface Vision {
   label: string; // 标签（简短分类）
   desc: string; // 概念描述
   detail?: string; // 详细描述
+  energyScore: number; // 愿景累计能量值
   createdAt: number;
   updatedAt: number;
 }
@@ -105,7 +106,7 @@ export interface AppState {
 }
 
 // 预设愿景
-export const PRESET_VISIONS: Omit<Vision, 'createdAt' | 'updatedAt'>[] = [
+export const PRESET_VISIONS: Omit<Vision, 'createdAt' | 'updatedAt' | 'energyScore'>[] = [
   { id: 'health', title: '身心健康', emoji: '🏃', label: '健康', desc: '身体活力与生命力' },
   { id: 'family', title: '家庭和睦', emoji: '👨‍👩‍👧', label: '家庭', desc: '亲密关系与归属感' },
   { id: 'career', title: '事业发展', emoji: '💼', label: '事业', desc: '成就与社会价值' },
@@ -240,4 +241,7 @@ export const ENERGY_SCORES = {
   DRAIN_AWARENESS_BONUS: 10,
   FLOW_BASE: 5,
   FLOW_MULTIPLIER: 1.0,
+  RECORD_WITH_VISION_BONUS: 10, // 绑定愿景的记录加分
+  RECORD_BASE: 5, // 无愿景记录的基础分
+  COMMITMENT_BONUS: 20, // 承诺完成加分
 };

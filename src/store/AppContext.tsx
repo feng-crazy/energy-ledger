@@ -1,6 +1,6 @@
 // Custom React Context for global app state
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Vision, EnergyRecord, Commitment, UserStats, AiConfig } from '@/types';
+import { Vision, EnergyRecord, Commitment, UserStats, AiConfig, ENERGY_SCORES } from '@/types';
 import * as Storage from '@/store/storage';
 
 interface AppContextType {
@@ -104,8 +104,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
   
   const deleteVision = async (id: string) => {
+    const commitmentsToDelete = activeCommitments.filter(c => c.visionId === id && c.status === 'active');
+    for (const commitment of commitmentsToDelete) {
+      await Storage.deleteCommitment(commitment.id);
+    }
+    
     await Storage.deleteVision(id);
     setVisions(prev => prev.filter(v => v.id !== id));
+    
+    if (commitmentsToDelete.length > 0) {
+      setActiveCommitments(prev => prev.filter(c => c.visionId !== id));
+    }
   };
   
   // Record actions
@@ -118,7 +127,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const newRecord = await Storage.addRecord(record);
     setRecords(prev => [newRecord, ...prev]);
     
-    // Update stats
+    if (record.visions.length > 0) {
+      const energyPerVision = Math.floor(ENERGY_SCORES.RECORD_WITH_VISION_BONUS / record.visions.length);
+      for (const visionId of record.visions) {
+        await Storage.updateVisionEnergyScore(visionId, energyPerVision);
+      }
+      setVisions(prev => prev.map(v => 
+        record.visions.includes(v.id)
+          ? { ...v, energyScore: v.energyScore + energyPerVision, updatedAt: Date.now() }
+          : v
+      ));
+    }
+    
     const newTotalEnergy = stats.totalEnergy + record.score;
     const today = new Date().toISOString().split('T')[0];
     const isConsecutiveDay = stats.lastRecordDate === new Date(Date.now() - 86400000).toISOString().split('T')[0];
@@ -160,10 +180,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
   
   const completeCommitment = async (id: string) => {
+    const commitment = activeCommitments.find(c => c.id === id);
+    if (!commitment) {
+      console.warn('Commitment not found:', id);
+      return;
+    }
+    
     await Storage.completeCommitment(id);
     await refreshActiveCommitments();
     
-    // Update stats
+    if (commitment.visionId) {
+      await Storage.updateVisionEnergyScore(commitment.visionId, ENERGY_SCORES.COMMITMENT_BONUS);
+      setVisions(prev => prev.map(v => 
+        v.id === commitment.visionId 
+          ? { ...v, energyScore: v.energyScore + ENERGY_SCORES.COMMITMENT_BONUS, updatedAt: Date.now() }
+          : v
+      ));
+    }
+    
     const newCompletedCount = stats.completedCommitments + 1;
     await Storage.updateUserStats({ completedCommitments: newCompletedCount });
     setStats(prev => ({ ...prev, completedCommitments: newCompletedCount }));

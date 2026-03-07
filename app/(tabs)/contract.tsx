@@ -20,7 +20,7 @@ import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Modal } from '@/components/Modal';
 import { colors, typography, spacing, borderRadius } from '@/utils/theme';
-import { Commitment } from '@/types';
+import { Commitment, ENERGY_SCORES } from '@/types';
 
 type Scene = 'active' | 'empty' | 'create';
 
@@ -48,6 +48,7 @@ export default function ContractPage() {
   const [failReason, setFailReason] = useState('');
   const [failTag, setFailTag] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [commitmentEnergy, setCommitmentEnergy] = useState(0);
   const [countdowns, setCountdowns] = useState<Record<string, string>>({});
   
   // Create form state
@@ -106,6 +107,7 @@ export default function ContractPage() {
   const handleDone = async (commitmentId: string) => {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await completeCommitment(commitmentId);
+    setCommitmentEnergy(ENERGY_SCORES.COMMITMENT_BONUS);
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);
@@ -217,7 +219,7 @@ export default function ContractPage() {
         <Animated.View entering={FadeIn} style={styles.successContent}>
           <Text style={styles.successEmoji}>⚡️</Text>
           <Text style={styles.successTitle}>承诺已兑现！</Text>
-          <Text style={styles.successSubtitle}>能量 +20 · 连胜 +1</Text>
+          <Text style={styles.successSubtitle}>能量 +{commitmentEnergy} · 连胜 +1</Text>
           <View style={styles.streakBadge}>
             <Text style={styles.streakText}>🔥 你已连续兑现 {stats.completedCommitments + 1} 天！</Text>
           </View>

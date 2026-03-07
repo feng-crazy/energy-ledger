@@ -36,6 +36,7 @@ export async function initDatabase(): Promise<void> {
       label TEXT NOT NULL,
       desc TEXT NOT NULL,
       detail TEXT,
+      energyScore INTEGER NOT NULL DEFAULT 0,
       createdAt INTEGER NOT NULL,
       updatedAt INTEGER NOT NULL
     );
@@ -76,6 +77,29 @@ export async function initDatabase(): Promise<void> {
   } catch (error) {
     console.warn('Vision title migration failed:', error);
   }
+  
+  // Migrate existing visions: initialize energyScore from records
+  try {
+    await migrateVisionEnergyScore();
+  } catch (error) {
+    console.warn('Vision energyScore migration failed:', error);
+  }
+}
+
+// Migrate existing visions to have energyScore
+async function migrateVisionEnergyScore(): Promise<void> {
+  const visions = await getVisions();
+  const records = await getRecords();
+  
+  for (const vision of visions) {
+    const visionRecords = records.filter(r => r.visions.includes(vision.id));
+    const totalScore = visionRecords.reduce((sum, r) => sum + r.score, 0);
+    
+    await db.runAsync(
+      'UPDATE visions SET energyScore = ? WHERE id = ?',
+      [totalScore, vision.id]
+    );
+  }
 }
 
 // ==================== Utility Functions ====================
@@ -104,6 +128,7 @@ export async function addVision(vision: Omit<Vision, 'id' | 'createdAt' | 'updat
     id: generateId(),
     createdAt: now,
     updatedAt: now,
+    energyScore: 0,
   };
   
   if (isWeb) {
@@ -115,8 +140,8 @@ export async function addVision(vision: Omit<Vision, 'id' | 'createdAt' | 'updat
   
   if (!db) await initDatabase();
   await db.runAsync(
-    'INSERT INTO visions (id, title, emoji, label, desc, detail, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [newVision.id, newVision.title, newVision.emoji, newVision.label, newVision.desc, newVision.detail || null, newVision.createdAt, newVision.updatedAt]
+    'INSERT INTO visions (id, title, emoji, label, desc, detail, energyScore, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [newVision.id, newVision.title, newVision.emoji, newVision.label, newVision.desc, newVision.detail || null, newVision.energyScore, newVision.createdAt, newVision.updatedAt]
   );
   
   return newVision;
@@ -154,6 +179,25 @@ export async function deleteVision(id: string): Promise<void> {
   
   if (!db) await initDatabase();
   await db.runAsync('DELETE FROM visions WHERE id = ?', [id]);
+}
+
+export async function updateVisionEnergyScore(id: string, delta: number): Promise<void> {
+  if (isWeb) {
+    const visions = await getVisions();
+    const index = visions.findIndex(v => v.id === id);
+    if (index !== -1) {
+      visions[index].energyScore += delta;
+      visions[index].updatedAt = Date.now();
+      await AsyncStorage.setItem('visions', JSON.stringify(visions));
+    }
+    return;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync(
+    'UPDATE visions SET energyScore = energyScore + ?, updatedAt = ? WHERE id = ?',
+    [delta, Date.now(), id]
+  );
 }
 
 // ==================== Energy Record CRUD ====================

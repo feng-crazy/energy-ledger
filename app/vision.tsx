@@ -21,7 +21,7 @@ import { PRESET_VISIONS, Vision } from '@/types';
 
 export default function VisionPage() {
   const router = useRouter();
-  const { visions, addVision, updateVision, deleteVision, hasOnboarded, completeOnboarding } = useApp();
+  const { visions, activeCommitments, addVision, updateVision, deleteVision, hasOnboarded, completeOnboarding } = useApp();
   
   const [showAdd, setShowAdd] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
@@ -109,6 +109,7 @@ export default function VisionPage() {
         label: customLabel,
         desc: customDesc,
         detail: detailInput,
+        energyScore: 0,
       });
       
       setIsCustom(false);
@@ -149,6 +150,7 @@ export default function VisionPage() {
         label: preset.label,
         desc: preset.desc,
         detail: detailInput,
+        energyScore: 0,
       });
     }
     
@@ -162,24 +164,52 @@ export default function VisionPage() {
     const visionToDelete = visions.find(v => v.id === id);
     if (!visionToDelete) return;
     
-    // 任何删除操作都需要确认，防止误删
-    const confirmed = await new Promise<boolean>((resolve) => {
-      if (Platform.OS === 'web') {
-        const result = confirm(
-          `确定要删除 "${visionToDelete.title}" 吗？`
-        );
-        resolve(result);
-      } else {
-        Alert.alert(
-          '确认删除',
-          `确定要删除 "${visionToDelete.title}" 吗？`,
-          [
-            { text: '取消', style: 'cancel', onPress: () => resolve(false) },
-            { text: '删除', style: 'destructive', onPress: () => resolve(true) },
-          ]
-        );
-      }
-    });
+    // Check for active commitments linked to this vision
+    const linkedCommitments = activeCommitments.filter(
+      (c) => c.visionId === id && c.status === 'active'
+    );
+    
+    let confirmed = false;
+    
+    if (linkedCommitments.length > 0) {
+      // Show warning about cascading delete
+      confirmed = await new Promise<boolean>((resolve) => {
+        if (Platform.OS === 'web') {
+          const result = confirm(
+            `确定要删除 "${visionToDelete.title}" 吗？\n\n⚠️ 此愿景有 ${linkedCommitments.length} 个活跃承诺，删除后将一并删除：\n${linkedCommitments.map((c) => `• ${c.content}`).join('\n')}`
+          );
+          resolve(result);
+        } else {
+          Alert.alert(
+            '确认删除',
+            `确定要删除 "${visionToDelete.title}" 吗？\n\n⚠️ 此愿景有 ${linkedCommitments.length} 个活跃承诺，删除后将一并删除：\n${linkedCommitments.map((c) => `• ${c.content}`).join('\n')}`,
+            [
+              { text: '取消', style: 'cancel', onPress: () => resolve(false) },
+              { text: '删除', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        }
+      });
+    } else {
+      // Normal confirmation without commitments warning
+      confirmed = await new Promise<boolean>((resolve) => {
+        if (Platform.OS === 'web') {
+          const result = confirm(
+            `确定要删除 "${visionToDelete.title}" 吗？`
+          );
+          resolve(result);
+        } else {
+          Alert.alert(
+            '确认删除',
+            `确定要删除 "${visionToDelete.title}" 吗？`,
+            [
+              { text: '取消', style: 'cancel', onPress: () => resolve(false) },
+              { text: '删除', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        }
+      });
+    }
     
     if (!confirmed) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
