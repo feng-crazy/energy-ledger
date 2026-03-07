@@ -83,10 +83,13 @@ export function AiConfigModal({ visible, onClose, config, onSave, onClear }: AiC
   return (
     <Modal visible={visible} onClose={onClose} showClose={true}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
           <Text style={styles.title}>AI 大模型配置</Text>
           <Text style={styles.subtitle}>
             配置你的 AI 服务以启用深度洞察分析
@@ -184,7 +187,10 @@ export function AiConfigModal({ visible, onClose, config, onSave, onClear }: AiC
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
+  },
+  scrollContent: {
+    paddingBottom: spacing.xl,
   },
   title: {
     fontSize: 18,

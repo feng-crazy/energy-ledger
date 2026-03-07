@@ -58,6 +58,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     borderWidth: 1,
     borderColor: colors.white.border,
+    maxHeight: '85%',
   },
   closeButton: {
     position: 'absolute',

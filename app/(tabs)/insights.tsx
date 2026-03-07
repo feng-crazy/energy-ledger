@@ -1,5 +1,5 @@
 // Insights Page - 洞察分析
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,14 @@ import {
 import { useRouter } from 'expo-router';
 import { Sparkles, ChevronRight, Brain, Settings } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { 
+  FadeIn, 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat, 
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { useApp } from '@/store/AppContext';
 import { Card } from '@/components/Card';
 import { AiConfigModal } from '@/components/AiConfigModal';
@@ -25,6 +32,26 @@ import {
   getVisionEmoji,
   formatDateTime,
 } from '@/utils/recordHelpers';
+
+function LoadingSpinner() {
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    rotation.value = withRepeat(
+      withTiming(360, { duration: 1000, easing: Easing.linear }),
+      -1,
+      false
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
+  return (
+    <Animated.View style={[styles.loadingSpinner, animatedStyle]} />
+  );
+}
 
 export default function InsightsPage() {
   const router = useRouter();
@@ -170,7 +197,7 @@ return (
                 >
                   {analyzingId === record.id ? (
                     <>
-                      <View style={styles.loadingSpinner} />
+                      <LoadingSpinner />
                       <Text style={styles.analyzeButtonText}>AI 深度分析中...</Text>
                     </>
                   ) : (
