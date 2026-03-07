@@ -26,6 +26,7 @@ interface AppContextType {
   addCommitment: (commitment: Omit<Commitment, 'id' | 'createdAt' | 'status'>) => Promise<Commitment>;
   completeCommitment: (id: string) => Promise<void>;
   failCommitment: (id: string, reason?: string, tag?: string) => Promise<void>;
+  deleteCommitment: (id: string) => Promise<void>;
   
   refreshStats: () => Promise<void>;
   updateStats: (updates: Partial<UserStats>) => Promise<void>;
@@ -160,6 +161,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refreshActiveCommitments();
   };
   
+  const deleteCommitment = async (id: string) => {
+    await Storage.deleteCommitment(id);
+    setActiveCommitments(prev => prev.filter(c => c.id !== id));
+  };
+  
   // Stats actions
   const refreshStats = async () => {
     const data = await Storage.getUserStats();
@@ -197,6 +203,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addCommitment,
         completeCommitment,
         failCommitment,
+        deleteCommitment,
         refreshStats,
         updateStats,
         completeOnboarding,

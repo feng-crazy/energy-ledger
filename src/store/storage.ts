@@ -359,6 +359,18 @@ export async function failCommitment(id: string, reason?: string, tag?: string):
   );
 }
 
+export async function deleteCommitment(id: string): Promise<void> {
+  if (isWeb) {
+    const commitments = await getCommitments();
+    const filtered = commitments.filter(c => c.id !== id);
+    await AsyncStorage.setItem('commitments', JSON.stringify(filtered));
+    return;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync('DELETE FROM commitments WHERE id = ?', [id]);
+}
+
 // ==================== Statistics ====================
 
 export async function getUserStats(): Promise<UserStats> {

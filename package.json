@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@quidone/react-native-wheel-picker": "^1.6.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@shopify/react-native-skia": "2.4.18",
     "babel-preset-expo": "^55.0.10",

@@ -7,7 +7,10 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Alert,
+  Platform,
 } from 'react-native';
+import WheelPicker from '@quidone/react-native-wheel-picker';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, X, Plus, Check, Zap } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -24,9 +27,21 @@ type Scene = 'active' | 'empty' | 'create';
 const quickTimes = ['1小时内', '今天内', '本周内'];
 const failTags = ['📱 手机干扰', '😫 太累了', '📅 太忙', '🌧️ 其他'];
 
+// Generate number arrays for picker
+const generateNumbers = (start: number, end: number) => {
+  return Array.from({ length: end - start + 1 }, (_, i) => ({
+    value: start + i,
+    label: (start + i).toString().padStart(2, '0'),
+  }));
+};
+
+const DAYS = generateNumbers(0, 6);
+const HOURS = generateNumbers(0, 23);
+const MINUTES = generateNumbers(0, 59);
+
 export default function ContractPage() {
   const router = useRouter();
-  const { visions, activeCommitments, stats, addCommitment, completeCommitment, failCommitment } = useApp();
+  const { visions, activeCommitments, stats, addCommitment, completeCommitment, failCommitment, deleteCommitment } = useApp();
   
   const [scene, setScene] = useState<Scene>('active');
   const [showFailModal, setShowFailModal] = useState(false);
@@ -37,7 +52,9 @@ export default function ContractPage() {
   
   // Create form state
   const [commitment, setCommitment] = useState('');
-  const [timeOption, setTimeOption] = useState('今天内');
+  const [selectedDays, setSelectedDays] = useState(0);
+  const [selectedHours, setSelectedHours] = useState(1);
+  const [selectedMinutes, setSelectedMinutes] = useState(0);
   const [selectedVision, setSelectedVision] = useState<string | null>(null);
   
   // Update scene based on active commitments
@@ -65,11 +82,17 @@ export default function ContractPage() {
           return;
         }
         
-        const hours = Math.floor(remaining / (1000 * 60 * 60));
+        const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
         
-        newCountdowns[c.id] = `${hours.toString().padStart(2, '0')} : ${minutes.toString().padStart(2, '0')} : ${seconds.toString().padStart(2, '0')}`;
+        // Show days only if > 0
+        if (days > 0) {
+          newCountdowns[c.id] = `${days}天 ${hours.toString().padStart(2, '0')} : ${minutes.toString().padStart(2, '0')} : ${seconds.toString().padStart(2, '0')}`;
+        } else {
+          newCountdowns[c.id] = `${hours.toString().padStart(2, '0')} : ${minutes.toString().padStart(2, '0')} : ${seconds.toString().padStart(2, '0')}`;
+        }
       });
       
       setCountdowns(newCountdowns);
@@ -110,39 +133,69 @@ export default function ContractPage() {
     }
   };
   
+  const handleDelete = async (id: string) => {
+    const commitmentToDelete = activeCommitments.find(c => c.id === id);
+    if (!commitmentToDelete) return;
+    
+    const confirmed = await new Promise<boolean>((resolve) => {
+      if (Platform.OS === 'web') {
+        const result = confirm(
+          `确定要删除此承诺吗？\n\n"${commitmentToDelete.content}"`
+        );
+        resolve(result);
+      } else {
+        Alert.alert(
+          '确认删除',
+          `确定要删除此承诺吗？\n\n"${commitmentToDelete.content}"`,
+          [
+            { text: '取消', style: 'cancel', onPress: () => resolve(false) },
+            { text: '删除', style: 'destructive', onPress: () => resolve(true) },
+          ]
+        );
+      }
+    });
+    
+    if (!confirmed) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+    
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await deleteCommitment(id);
+    if (activeCommitments.length <= 1) {
+      setScene('empty');
+    }
+  };
+  
   const handleCreate = async () => {
     if (!commitment || !selectedVision) return;
     
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
     const now = Date.now();
-    let deadline = now;
+    const totalMilliseconds = (selectedDays * 24 * 60 * 60 * 1000) + 
+                              (selectedHours * 60 * 60 * 1000) + 
+                              (selectedMinutes * 60 * 1000);
+    const deadline = now + totalMilliseconds;
     
-    switch (timeOption) {
-      case '1小时内':
-        deadline = now + 60 * 60 * 1000;
-        break;
-      case '今天内':
-        const endOfDay = new Date();
-        endOfDay.setHours(23, 59, 59, 999);
-        deadline = endOfDay.getTime();
-        break;
-      case '本周内':
-        const endOfWeek = new Date();
-        endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
-        endOfWeek.setHours(23, 59, 59, 999);
-        deadline = endOfWeek.getTime();
-        break;
-    }
+    // Generate time description
+    const timeParts = [];
+    if (selectedDays > 0) timeParts.push(`${selectedDays}天`);
+    if (selectedHours > 0) timeParts.push(`${selectedHours}小时`);
+    if (selectedMinutes > 0) timeParts.push(`${selectedMinutes}分钟`);
+    const timeOption = timeParts.join('') || '立即';
     
     await addCommitment({
       content: commitment,
       visionId: selectedVision,
-      timeOption: timeOption === '1小时内' ? '1hour' : timeOption === '今天内' ? 'today' : 'week',
+      timeOption: 'custom' as any,
       deadline,
     });
     
     setCommitment('');
+    setSelectedDays(0);
+    setSelectedHours(1);
+    setSelectedMinutes(0);
     setSelectedVision(null);
     setScene('active');
   };
@@ -177,12 +230,16 @@ export default function ContractPage() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <ArrowLeft size={18} color={colors.white.primary} />
-        </TouchableOpacity>
+        {scene === 'create' ? (
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => setScene(activeCommitments.length > 0 ? 'active' : 'empty')}
+          >
+            <ArrowLeft size={18} color={colors.white.primary} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
         <Text style={styles.headerTitle}>能量加油站</Text>
         <View style={styles.headerSpacer} />
       </View>
@@ -223,7 +280,7 @@ export default function ContractPage() {
           </Card>
           
           {activeCommitments.map((commitment) => (
-            <View key={commitment.id}>
+            <View key={commitment.id} style={styles.commitmentItem}>
               <View style={styles.countdownCard}>
                 <Text style={styles.countdownEmoji}>⏰</Text>
                 <View>
@@ -233,7 +290,15 @@ export default function ContractPage() {
               </View>
               
               <Card style={styles.commitmentCard}>
-                <Text style={styles.commitmentLabel}>📝 我的微承诺</Text>
+                <View style={styles.commitmentHeader}>
+                  <Text style={styles.commitmentLabel}>📝 我的微承诺</Text>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDelete(commitment.id)}
+                  >
+                    <X size={14} color="rgba(255, 100, 100, 0.8)" />
+                  </TouchableOpacity>
+                </View>
                 <Text style={styles.commitmentText}>"{commitment.content}"</Text>
                 <View style={styles.commitmentMeta}>
                   <View style={styles.visionTag}>
@@ -318,24 +383,60 @@ export default function ContractPage() {
           
           {/* Step 2 */}
           <Text style={styles.stepTitle}>2 · 什么时候完成？</Text>
-          <View style={styles.timeOptions}>
-            {quickTimes.map((t) => (
-              <TouchableOpacity
-                key={t}
-                style={[
-                  styles.timeButton,
-                  timeOption === t && styles.timeButtonActive,
-                ]}
-                onPress={() => setTimeOption(t)}
-              >
-                <Text style={[
-                  styles.timeButtonText,
-                  timeOption === t && styles.timeButtonTextActive,
-                ]}>
-                  {t}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.timePickerContainer}>
+{/* Days Picker */}
+            <View style={styles.pickerColumn}>
+              <Text style={styles.pickerLabel}>天</Text>
+              <WheelPicker
+                data={DAYS}
+                value={selectedDays}
+                onValueChanging={({ item: { value } }: any) => setSelectedDays(value)}
+                keyExtractor={(item: any) => item.value.toString()}
+                renderItem={({ item }: any) => (
+                  <Text style={styles.pickerItemText}>{item.label}</Text>
+                )}
+                itemHeight={40}
+                visibleItemCount={3}
+                enableScrollByTapOnItem
+                overlayItemStyle={styles.pickerOverlay}
+              />
+            </View>
+
+            {/* Hours Picker */}
+            <View style={styles.pickerColumn}>
+              <Text style={styles.pickerLabel}>时</Text>
+              <WheelPicker
+                data={HOURS}
+                value={selectedHours}
+                onValueChanging={({ item: { value } }: any) => setSelectedHours(value)}
+                keyExtractor={(item: any) => item.value.toString()}
+                renderItem={({ item }: any) => (
+                  <Text style={styles.pickerItemText}>{item.label}</Text>
+                )}
+                itemHeight={40}
+                visibleItemCount={3}
+                enableScrollByTapOnItem
+                overlayItemStyle={styles.pickerOverlay}
+              />
+            </View>
+
+            {/* Minutes Picker */}
+            <View style={styles.pickerColumn}>
+              <Text style={styles.pickerLabel}>分</Text>
+              <WheelPicker
+                data={MINUTES}
+                value={selectedMinutes}
+                onValueChanging={({ item: { value } }: any) => setSelectedMinutes(value)}
+                keyExtractor={(item: any) => item.value.toString()}
+                renderItem={({ item }: any) => (
+                  <Text style={styles.pickerItemText}>{item.label}</Text>
+                )}
+                itemHeight={40}
+                visibleItemCount={3}
+                enableScrollByTapOnItem
+                overlayItemStyle={styles.pickerOverlay}
+              />
+            </View>
           </View>
           
           {/* Step 3 */}
@@ -544,13 +645,31 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 200, 80, 0.95)',
     fontVariant: ['tabular-nums'],
   },
+  commitmentItem: {
+    marginBottom: 32,
+  },
   commitmentCard: {
     marginBottom: 16,
+  },
+  commitmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   commitmentLabel: {
     fontSize: 12,
     color: colors.white.muted,
-    marginBottom: 10,
+  },
+  deleteButton: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 60, 60, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 60, 60, 0.2)',
   },
   commitmentText: {
     fontSize: 20,
@@ -672,31 +791,34 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 24,
   },
-  timeOptions: {
+  timePickerContainer: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 24,
+    gap: 12,
+    marginBottom: 8,
   },
-  timeButton: {
+  pickerColumn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
   },
-  timeButtonActive: {
+  pickerLabel: {
+    fontSize: 12,
+    color: colors.white.muted,
+    marginBottom: 8,
+  },
+  pickerContent: {
+    paddingVertical: 8,
+  },
+  pickerOverlay: {
     backgroundColor: 'rgba(0, 180, 180, 0.2)',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
     borderColor: 'rgba(0, 200, 200, 0.5)',
   },
-  timeButtonText: {
-    fontSize: 14,
+  pickerItemText: {
+    fontSize: 18,
+    fontWeight: '500',
     color: colors.white.muted,
-  },
-  timeButtonTextActive: {
-    color: colors.flow.primary,
-    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   requiredHint: {
     fontSize: 11,
