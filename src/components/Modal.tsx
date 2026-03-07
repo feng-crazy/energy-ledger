@@ -26,7 +26,12 @@ export function Modal({ visible, onClose, children, showClose = true }: ModalPro
           <TouchableWithoutFeedback>
             <View style={styles.content}>
               {showClose && (
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={styles.closeButton}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
                   <X size={20} color={colors.white.muted} />
                 </TouchableOpacity>
               )}
@@ -64,5 +69,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 100,
   },
 });

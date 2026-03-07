@@ -10,13 +10,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Sparkles, ChevronRight, Brain } from 'lucide-react-native';
+import { Sparkles, ChevronRight, Brain, Settings } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useApp } from '@/store/AppContext';
 import { Card } from '@/components/Card';
+import { AiConfigModal } from '@/components/AiConfigModal';
 import { colors, borderRadius } from '@/utils/theme';
-import { generateAiReport } from '@/utils/aiReport';
+import { generateAiReport, isAiReportAvailable } from '@/utils/aiReport';
 import {
   getStateLabel,
   getStateEmoji,
@@ -27,19 +28,20 @@ import {
 
 export default function InsightsPage() {
   const router = useRouter();
-  const { records, visions, updateRecordAiReport } = useApp();
+  const { records, visions, updateRecordAiReport, aiConfig, saveAiConfig, clearAiConfig } = useApp();
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   
-  const handleAnalyze = async (recordId: string) => {
+const handleAnalyze = async (recordId: string) => {
     const record = records.find(r => r.id === recordId);
-    if (!record || record.hasAiReport) return;
+    if (!record || record.hasAiReport || !aiConfig) return;
     
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setAnalyzingId(recordId);
     
     try {
-      const report = await generateAiReport(record);
+      const report = await generateAiReport(record, aiConfig);
       await updateRecordAiReport(recordId, report);
     } catch (error) {
       console.error('Failed to generate AI report:', error);
@@ -70,22 +72,50 @@ export default function InsightsPage() {
   
 return (
     <View style={styles.container}>
-      {/* Header */}
+      <AiConfigModal
+        visible={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        config={aiConfig}
+        onSave={saveAiConfig}
+        onClear={clearAiConfig}
+      />
+      
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>洞察分析</Text>
           <Text style={styles.headerSubtitle}>你的私人能量教练</Text>
         </View>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowConfigModal(true);
+          }}
+        >
+          <Settings size={22} color={aiConfig ? colors.flow.primary : colors.white.muted} />
+        </TouchableOpacity>
       </View>
       
       {/* AI Banner */}
-      <View style={styles.aiBanner}>
+      <View style={[styles.aiBanner, !isAiReportAvailable() && styles.aiBannerDisabled]}>
         <View style={styles.aiIconContainer}>
-          <Brain size={20} color="rgba(180, 140, 255, 0.9)" />
+          <Brain size={20} color={isAiReportAvailable() ? "rgba(180, 140, 255, 0.9)" : "rgba(100, 100, 100, 0.5)"} />
         </View>
         <View>
-          <Text style={styles.aiBannerTitle}>AI 深度洞察已就绪</Text>
-          <Text style={styles.aiBannerSubtitle}>从哲学 · 灵性修行 · 神经科学角度分析</Text>
+          <Text style={[styles.aiBannerTitle, !isAiReportAvailable() && styles.aiBannerTitleDisabled]}>
+            {!isAiReportAvailable() 
+              ? 'AI 报告功能不可用' 
+              : aiConfig 
+                ? 'AI 深度洞察已就绪' 
+                : '请先配置 AI 服务'}
+          </Text>
+          <Text style={styles.aiBannerSubtitle}>
+            {!isAiReportAvailable() 
+              ? '生产环境 Web 端暂不支持此功能' 
+              : aiConfig 
+                ? '从哲学 · 灵性修行 · 神经科学角度分析' 
+                : '点击右上角设置图标进行配置'}
+          </Text>
         </View>
       </View>
       
@@ -132,7 +162,7 @@ return (
               </Text>
               
               {/* AI Analysis Button */}
-              {!record.hasAiReport && (
+              {!record.hasAiReport && aiConfig && isAiReportAvailable() && (
                 <TouchableOpacity
                   style={styles.analyzeButton}
                   onPress={() => handleAnalyze(record.id)}
@@ -237,6 +267,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 56,
     paddingBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 16,
@@ -246,6 +279,16 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 11,
     color: colors.white.muted,
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: colors.white.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   aiBanner: {
     flexDirection: 'row',
@@ -278,6 +321,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(160, 120, 220, 0.7)',
     marginTop: 2,
+  },
+  aiBannerDisabled: {
+    backgroundColor: 'rgba(60, 60, 60, 0.2)',
+    borderColor: 'rgba(100, 100, 100, 0.3)',
+  },
+  aiBannerTitleDisabled: {
+    color: 'rgba(120, 120, 120, 0.8)',
   },
   content: {
     flex: 1,

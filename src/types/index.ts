@@ -50,6 +50,13 @@ export interface AiReport {
   generatedAt: number;
 }
 
+// AI配置
+export interface AiConfig {
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+}
+
 // 微承诺
 export interface Commitment {
   id: string;

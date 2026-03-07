@@ -1,29 +1,122 @@
-// AI Report Generator - AI 分析报告生成工具
-import { AiReport, EnergyRecord } from '@/types';
+import { Platform } from 'react-native';
+import { AiReport, EnergyRecord, AiConfig } from '@/types';
 
-/**
- * Mock AI 报告生成器
- * TODO: 替换为真实 AI API 调用
- */
-export const generateAiReport = async (record: EnergyRecord): Promise<AiReport> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 2500));
+const isWeb = Platform.OS === 'web';
+
+export function isAiReportAvailable(): boolean {
+  // On native platforms (iOS, Android), AI report is always available
+  if (!isWeb) return true;
+  // On web, AI report is not available due to CORS issues with proxy services
+  return false;
+}
+
+const SYSTEM_PROMPT = `你是一位融合哲学、灵性修行和神经科学视角的深度洞察分析师。你的任务是根据用户的能量状态记录，提供三个维度的深度分析：
+
+1. 哲学视角：从存在主义、道家、佛学、心理学等角度解读用户的体验
+2. 神经科学：从脑科学、神经递质、认知模式角度解释背后的机制
+3. 个性化建议：给出具体可执行的改进建议
+
+请用温暖而有洞察力的语气回应，避免说教，多用启发式的语言。每个维度控制在100-150字左右。
+
+回复格式：
+## 哲学视角
+[内容]
+
+## 神经科学
+[内容]
+
+## 个性化建议
+[内容]`;
+
+function buildUserPrompt(record: EnergyRecord): string {
+  const typeText = record.type === 'flow' ? '聚能态（心流/专注/积极）' : '耗散态（消耗/逃避/消极）';
+  const bodyStateText = record.customBodyState || record.bodyStateId;
+  const visionsText = record.visions.length > 0 ? `相关愿景: ${record.visions.join(', ')}` : '';
+  const journalText = record.journal || '无详细记录';
+
+  return `用户刚才记录了一次${typeText}体验：
+
+身体状态: ${bodyStateText}
+${visionsText}
+日志内容: ${journalText}
+
+请从哲学、神经科学、个性化建议三个维度给出深度分析。`;
+}
+
+function parseAiResponse(content: string): AiReport {
+  const sections = content.split(/##\s*/).filter(s => s.trim());
   
-  const isFlow = record.type === 'flow';
+  let philosophy = '';
+  let neuroscience = '';
+  let suggestion = '';
   
-  if (isFlow) {
-    return {
-      philosophy: "你所描述的心流体验，与庄子所言'无为而无不为'高度契合。当自我意识退场，真正的创造力才能涌现。这不是偶然，而是你长期积累的厚积薄发。",
-      neuroscience: "心流状态激活了大脑的默认模式网络与执行网络的同步协作，前额叶皮层的自我监控功能降低，使得创造性思维得以自由流动。多巴胺与去甲肾上腺素的平衡分泌是这种体验的神经基础。",
-      suggestion: "建议记录触发这次心流的前置条件（时间、环境、身体状态），尝试将其系统化，创造可复制的心流触发仪式。",
-      generatedAt: Date.now(),
-    };
-  } else {
-    return {
-      philosophy: "你所描述的逃避行为背后，是一种存在主义式的焦虑——面对自由时的不安（萨特语）。刷屏是一种现代人对抗'虚无感'的临时出口，但它带来的是更深的空洞。",
-      neuroscience: "短视频的即时奖励机制持续激活多巴胺系统，形成强化回路。持续注意力碎片化会削弱前额叶的自我调节能力，使'停下来'变得越来越困难——这是神经可塑性的双刃剑。",
-      suggestion: "睡前 30 分钟设定一个'数字宵禁'。用'5 秒法则'（倒数 5-4-3-2-1 后立即放下手机）打破自动化行为模式。焦虑感会在最初的 90 秒内消退，坚持过去就是突破。",
-      generatedAt: Date.now(),
-    };
+  for (const section of sections) {
+    const lines = section.trim().split('\n');
+    const title = lines[0].toLowerCase();
+    const body = lines.slice(1).join('\n').trim();
+    
+    if (title.includes('哲学') || title.includes('philosophy')) {
+      philosophy = body;
+    } else if (title.includes('神经') || title.includes('neuro')) {
+      neuroscience = body;
+    } else if (title.includes('建议') || title.includes('suggestion') || title.includes('推荐')) {
+      suggestion = body;
+    }
   }
-};
+  
+  if (!philosophy || !neuroscience || !suggestion) {
+    const paragraphs = content.split(/\n\n+/).filter(p => p.trim());
+    if (paragraphs.length >= 3) {
+      philosophy = paragraphs[0];
+      neuroscience = paragraphs[1];
+      suggestion = paragraphs[2];
+    } else {
+      philosophy = content.substring(0, 200);
+      neuroscience = content.substring(200, 400);
+      suggestion = content.substring(400, 600);
+    }
+  }
+  
+  return {
+    philosophy: philosophy || '无法解析哲学视角分析',
+    neuroscience: neuroscience || '无法解析神经科学分析',
+    suggestion: suggestion || '无法解析个性化建议',
+    generatedAt: Date.now(),
+  };
+}
+
+export async function generateAiReport(record: EnergyRecord, config: AiConfig): Promise<AiReport> {
+  // Safety check: should not be called in production web
+  if (!isAiReportAvailable()) {
+    throw new Error('AI 报告功能在 Web 端不可用');
+  }
+
+  const targetUrl = `${config.apiUrl}/chat/completions`;
+
+  const response = await fetch(targetUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: buildUserPrompt(record) },
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`AI API 请求失败: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content || '';
+  
+  return parseAiResponse(content);
+}

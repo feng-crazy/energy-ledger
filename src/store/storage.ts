@@ -1,7 +1,7 @@
 // Storage Layer using SQLite (native) and AsyncStorage (web fallback)
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { Vision, EnergyRecord, Commitment, UserStats, AppState } from '@/types';
+import { Vision, EnergyRecord, Commitment, UserStats, AppState, AiConfig } from '@/types';
 
 const DB_NAME = 'energy_ledger.db';
 
@@ -408,6 +408,19 @@ export async function getHasOnboarded(): Promise<boolean> {
 
 export async function setHasOnboarded(value: boolean): Promise<void> {
   await AsyncStorage.setItem('has_onboarded', value.toString());
+}
+
+export async function getAiConfig(): Promise<AiConfig | null> {
+  const data = await AsyncStorage.getItem('ai_config');
+  return data ? JSON.parse(data) : null;
+}
+
+export async function setAiConfig(config: AiConfig): Promise<void> {
+  await AsyncStorage.setItem('ai_config', JSON.stringify(config));
+}
+
+export async function deleteAiConfig(): Promise<void> {
+  await AsyncStorage.removeItem('ai_config');
 }
 
 // Export full app state

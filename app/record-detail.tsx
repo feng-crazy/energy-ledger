@@ -13,7 +13,7 @@ import { ArrowLeft, Share, Sparkles, Brain, ChevronRight } from 'lucide-react-na
 import { useApp } from '@/store/AppContext';
 import { Card } from '@/components/Card';
 import { colors, typography, spacing, borderRadius } from '@/utils/theme';
-import { generateAiReport } from '@/utils/aiReport';
+import { generateAiReport, isAiReportAvailable } from '@/utils/aiReport';
 import {
   getStateLabel,
   getStateEmoji,
@@ -25,7 +25,7 @@ import {
 export default function RecordDetailPage() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
-  const { records, visions, updateRecordAiReport } = useApp();
+  const { records, visions, updateRecordAiReport, aiConfig } = useApp();
   const [analyzing, setAnalyzing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   
@@ -45,12 +45,12 @@ export default function RecordDetailPage() {
     return `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')} ${timeStr}`;
   };
   
-  const handleAnalyze = async () => {
-    if (!record || record.hasAiReport) return;
+const handleAnalyze = async () => {
+    if (!record || record.hasAiReport || !aiConfig) return;
     
     setAnalyzing(true);
     try {
-      const report = await generateAiReport(record);
+      const report = await generateAiReport(record, aiConfig);
       await updateRecordAiReport(record.id, report);
       setExpanded(true);
     } catch (error) {
@@ -178,9 +178,10 @@ export default function RecordDetailPage() {
           </View>
         )}
         
-        {/* AI Analysis */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>AI 深度洞察</Text>
+{/* AI Analysis */}
+         {aiConfig && isAiReportAvailable() && (
+         <View style={styles.section}>
+           <Text style={styles.sectionLabel}>AI 深度洞察</Text>
           
           {!record.hasAiReport ? (
             <TouchableOpacity
@@ -247,6 +248,7 @@ export default function RecordDetailPage() {
             </View>
           )}
         </View>
+        )}
       </ScrollView>
     </View>
   );

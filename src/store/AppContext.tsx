@@ -1,6 +1,6 @@
 // Custom React Context for global app state
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Vision, EnergyRecord, Commitment, UserStats } from '@/types';
+import { Vision, EnergyRecord, Commitment, UserStats, AiConfig } from '@/types';
 import * as Storage from '@/store/storage';
 
 interface AppContextType {
@@ -11,6 +11,7 @@ interface AppContextType {
   stats: UserStats;
   hasOnboarded: boolean;
   isLoading: boolean;
+  aiConfig: AiConfig | null;
   
   // Actions
   refreshVisions: () => Promise<void>;
@@ -32,6 +33,9 @@ interface AppContextType {
   updateStats: (updates: Partial<UserStats>) => Promise<void>;
   
   completeOnboarding: () => Promise<void>;
+  
+  saveAiConfig: (config: AiConfig) => Promise<void>;
+  clearAiConfig: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -49,18 +53,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const [hasOnboarded, setHasOnboarded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
   
   // Initialize on mount
   useEffect(() => {
     async function loadData() {
       try {
         await Storage.initDatabase();
-        const [loadedVisions, loadedRecords, loadedCommitments, loadedStats, onboarded] = await Promise.all([
+        const [loadedVisions, loadedRecords, loadedCommitments, loadedStats, onboarded, loadedAiConfig] = await Promise.all([
           Storage.getVisions(),
           Storage.getRecords(50),
           Storage.getActiveCommitments(),
           Storage.getUserStats(),
           Storage.getHasOnboarded(),
+          Storage.getAiConfig(),
         ]);
         
         setVisions(loadedVisions);
@@ -68,6 +74,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setActiveCommitments(loadedCommitments);
         setStats(loadedStats);
         setHasOnboarded(onboarded);
+        setAiConfig(loadedAiConfig);
       } catch (error) {
         console.error('Failed to load data:', error);
       } finally {
@@ -183,6 +190,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setHasOnboarded(true);
   };
   
+  const saveAiConfig = async (config: AiConfig) => {
+    await Storage.setAiConfig(config);
+    setAiConfig(config);
+  };
+  
+  const clearAiConfig = async () => {
+    await Storage.deleteAiConfig();
+    setAiConfig(null);
+  };
+  
   return (
     <AppContext.Provider
       value={{
@@ -192,6 +209,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         stats,
         hasOnboarded,
         isLoading,
+        aiConfig,
         refreshVisions,
         addVision,
         updateVision,
@@ -207,6 +225,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         refreshStats,
         updateStats,
         completeOnboarding,
+        saveAiConfig,
+        clearAiConfig,
       }}
     >
       {children}
