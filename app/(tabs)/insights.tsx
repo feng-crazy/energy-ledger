@@ -12,11 +12,11 @@ import {
 import { useRouter } from 'expo-router';
 import { Sparkles, ChevronRight, Brain, Settings } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, { 
-  FadeIn, 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
+import Animated, {
+  FadeIn,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
@@ -59,14 +59,14 @@ export default function InsightsPage() {
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
-  
-const handleAnalyze = async (recordId: string) => {
+
+  const handleAnalyze = async (recordId: string) => {
     const record = records.find(r => r.id === recordId);
     if (!record || record.hasAiReport || !aiConfig) return;
-    
+
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setAnalyzingId(recordId);
-    
+
     try {
       const report = await generateAiReport(record, aiConfig);
       await updateRecordAiReport(recordId, report);
@@ -77,27 +77,27 @@ const handleAnalyze = async (recordId: string) => {
       setExpandedId(recordId);
     }
   };
-  
+
   // Pagination state
   const PAGE_SIZE = 20;
   const [displayedCount, setDisplayedCount] = useState(PAGE_SIZE);
-  
+
   // Get displayed records (pagination)
   const displayedRecords = useMemo(() => {
     return records.slice(0, displayedCount);
   }, [records, displayedCount]);
-  
+
   // Check if there are more records to load
   const hasMoreRecords = displayedCount < records.length;
-  
+
   // Load more records
   const loadMore = () => {
     if (hasMoreRecords) {
       setDisplayedCount(prev => prev + PAGE_SIZE);
     }
   };
-  
-return (
+
+  return (
     <View style={styles.container}>
       <AiConfigModal
         visible={showConfigModal}
@@ -106,7 +106,7 @@ return (
         onSave={saveAiConfig}
         onClear={clearAiConfig}
       />
-      
+
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>洞察分析</Text>
@@ -122,7 +122,7 @@ return (
           <Settings size={22} color={aiConfig ? colors.flow.primary : colors.white.muted} />
         </TouchableOpacity>
       </View>
-      
+
       {/* AI Banner */}
       <View style={[styles.aiBanner, !isAiReportAvailable() && styles.aiBannerDisabled]}>
         <View style={styles.aiIconContainer}>
@@ -130,22 +130,22 @@ return (
         </View>
         <View>
           <Text style={[styles.aiBannerTitle, !isAiReportAvailable() && styles.aiBannerTitleDisabled]}>
-            {!isAiReportAvailable() 
-              ? 'AI 报告功能不可用' 
-              : aiConfig 
-                ? 'AI 深度洞察已就绪' 
+            {!isAiReportAvailable()
+              ? 'AI 报告功能不可用'
+              : aiConfig
+                ? 'AI 深度洞察已就绪'
                 : '请先配置 AI 服务'}
           </Text>
           <Text style={styles.aiBannerSubtitle}>
-            {!isAiReportAvailable() 
-              ? '生产环境 Web 端暂不支持此功能' 
-              : aiConfig 
-                ? '从哲学 · 灵性修行 · 神经科学角度分析' 
+            {!isAiReportAvailable()
+              ? '生产环境 Web 端暂不支持此功能'
+              : aiConfig
+                ? '从心理学 · 灵性修行 · 神经科学角度分析'
                 : '点击右上角设置图标进行配置'}
           </Text>
         </View>
       </View>
-      
+
       <FlatList
         data={displayedRecords}
         keyExtractor={(item) => item.id}
@@ -158,11 +158,11 @@ return (
               {/* Record Header */}
               <View style={styles.recordHeader}>
                 <View style={styles.recordHeaderLeft}>
-                  <View 
+                  <View
                     style={[
                       styles.recordDot,
                       { backgroundColor: record.type === 'flow' ? colors.flow.primary : colors.drain.primary }
-                    ]} 
+                    ]}
                   />
                   <Text style={styles.recordState}>
                     {getStateEmoji(record.type, record.bodyStateId)} {getStateLabel(record.type, record.bodyStateId, record.customBodyState)}
@@ -170,7 +170,7 @@ return (
                 </View>
                 <Text style={styles.recordTime}>{formatDateTime(record.createdAt)}</Text>
               </View>
-              
+
               {/* Vision Tags */}
               {record.visions.length > 0 && (
                 <View style={styles.visionTags}>
@@ -182,12 +182,12 @@ return (
                   ))}
                 </View>
               )}
-              
+
               {/* Content Preview */}
               <Text style={styles.recordContent} numberOfLines={2}>
                 {record.journal || record.customBodyState || '暂无详细记录'}
               </Text>
-              
+
               {/* AI Analysis Button */}
               {!record.hasAiReport && aiConfig && isAiReportAvailable() && (
                 <TouchableOpacity
@@ -208,7 +208,7 @@ return (
                   )}
                 </TouchableOpacity>
               )}
-              
+
               {/* AI Report */}
               {record.hasAiReport && record.aiReport && (
                 <View>
@@ -228,23 +228,23 @@ return (
                       }}
                     />
                   </TouchableOpacity>
-                  
+
                   {expandedId === record.id && (
                     <Animated.View entering={FadeIn} style={styles.reportContent}>
                       <View style={styles.reportSection}>
-                        <Text style={styles.reportSectionTitle}>🏛️ 哲学视角</Text>
+                        <Text style={styles.reportSectionTitle}>🏛️ 心理学视角</Text>
                         <Text style={styles.reportSectionText}>
                           {record.aiReport.philosophy}
                         </Text>
                       </View>
-                      
+
                       <View style={styles.reportSection}>
                         <Text style={styles.reportSectionTitle}>🧠 神经科学</Text>
                         <Text style={styles.reportSectionText}>
                           {record.aiReport.neuroscience}
                         </Text>
                       </View>
-                      
+
                       <View style={[styles.reportSection, styles.suggestionSection]}>
                         <Text style={styles.reportSectionTitle}>💡 个性化建议</Text>
                         <Text style={styles.suggestionText}>

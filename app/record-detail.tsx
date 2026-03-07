@@ -209,7 +209,7 @@ export default function RecordDetailPage() {
               {expanded && (
                 <View style={styles.reportContent}>
                   <View style={styles.reportSection}>
-                    <Text style={styles.reportSectionTitle}>🏛️ 哲学视角</Text>
+                    <Text style={styles.reportSectionTitle}>🏛️ 心理学视角</Text>
                     <Text style={styles.reportSectionText}>
                       {record.aiReport.philosophy}
                     </Text>
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: 16,
   },
-backButton: {
+  backButton: {
     width: 36,
     height: 36,
     alignItems: 'center',

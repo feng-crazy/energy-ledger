@@ -10,16 +10,16 @@ export function isAiReportAvailable(): boolean {
   return false;
 }
 
-const SYSTEM_PROMPT = `你是一位融合哲学、灵性修行和神经科学视角的深度洞察分析师。你的任务是根据用户的能量状态记录，提供三个维度的深度分析：
+const SYSTEM_PROMPT = `你是一位融合心理学、灵性修行和神经科学视角的深度洞察分析师。你的任务是根据用户的能量状态记录，提供三个维度的深度分析：
 
-1. 哲学视角：从存在主义、道家、佛学、心理学等角度解读用户的体验
+1. 心理学视角：从存在主义、道家、佛学、心理学等角度解读用户的体验
 2. 神经科学：从脑科学、神经递质、认知模式角度解释背后的机制
 3. 个性化建议：给出具体可执行的改进建议
 
 请用温暖而有洞察力的语气回应，避免说教，多用启发式的语言。每个维度控制在100-150字左右。
 
 回复格式：
-## 哲学视角
+## 心理学视角
 [内容]
 
 ## 神经科学
@@ -40,22 +40,22 @@ function buildUserPrompt(record: EnergyRecord): string {
 ${visionsText}
 日志内容: ${journalText}
 
-请从哲学、神经科学、个性化建议三个维度给出深度分析。`;
+请从心理学、神经科学、个性化建议三个维度给出深度分析。`;
 }
 
 function parseAiResponse(content: string): AiReport {
   const sections = content.split(/##\s*/).filter(s => s.trim());
-  
+
   let philosophy = '';
   let neuroscience = '';
   let suggestion = '';
-  
+
   for (const section of sections) {
     const lines = section.trim().split('\n');
     const title = lines[0].toLowerCase();
     const body = lines.slice(1).join('\n').trim();
-    
-    if (title.includes('哲学') || title.includes('philosophy')) {
+
+    if (title.includes('心理学') || title.includes('philosophy')) {
       philosophy = body;
     } else if (title.includes('神经') || title.includes('neuro')) {
       neuroscience = body;
@@ -63,7 +63,7 @@ function parseAiResponse(content: string): AiReport {
       suggestion = body;
     }
   }
-  
+
   if (!philosophy || !neuroscience || !suggestion) {
     const paragraphs = content.split(/\n\n+/).filter(p => p.trim());
     if (paragraphs.length >= 3) {
@@ -76,9 +76,9 @@ function parseAiResponse(content: string): AiReport {
       suggestion = content.substring(400, 600);
     }
   }
-  
+
   return {
-    philosophy: philosophy || '无法解析哲学视角分析',
+    philosophy: philosophy || '无法解析心理学视角分析',
     neuroscience: neuroscience || '无法解析神经科学分析',
     suggestion: suggestion || '无法解析个性化建议',
     generatedAt: Date.now(),
@@ -117,6 +117,6 @@ export async function generateAiReport(record: EnergyRecord, config: AiConfig): 
 
   const data = await response.json();
   const content = data.choices?.[0]?.message?.content || '';
-  
+
   return parseAiResponse(content);
 }

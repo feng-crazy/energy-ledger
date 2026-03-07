@@ -13,12 +13,12 @@ import { colors, borderRadius } from '@/utils/theme';
 
 export default function OnboardingPage() {
   const router = useRouter();
-  
+
   const handleStart = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.replace('/vision');
   };
-  
+
   return (
     <View style={styles.container}>
       <Animated.View entering={FadeIn} style={styles.content}>
@@ -28,7 +28,7 @@ export default function OnboardingPage() {
         <Text style={styles.welcomeSubtitle}>
           这不是另一个自我审判的法庭，而是一面映照内在能量流动的镜子。
         </Text>
-        
+
         <View style={styles.features}>
           <View style={styles.featureItem}>
             <Text style={styles.featureEmoji}>⚡</Text>
@@ -40,10 +40,10 @@ export default function OnboardingPage() {
           </View>
           <View style={styles.featureItem}>
             <Text style={styles.featureEmoji}>🧠</Text>
-            <Text style={styles.featureText}>AI 洞察 — 从哲学、神经科学角度分析</Text>
+            <Text style={styles.featureText}>AI 洞察 — 从心理学、神经科学角度分析</Text>
           </View>
         </View>
-        
+
         <Button
           title="开始设定愿景"
           onPress={handleStart}
