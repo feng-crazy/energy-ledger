@@ -22,6 +22,7 @@ interface AppContextType {
   refreshRecords: () => Promise<void>;
   addRecord: (record: Omit<EnergyRecord, 'id' | 'createdAt'>) => Promise<EnergyRecord>;
   updateRecordAiReport: (id: string, report: EnergyRecord['aiReport']) => Promise<void>;
+  deleteRecord: (id: string) => Promise<void>;
   
   refreshActiveCommitments: () => Promise<void>;
   addCommitment: (commitment: Omit<Commitment, 'id' | 'createdAt' | 'status'>) => Promise<Commitment>;
@@ -141,6 +142,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRecords(prev => prev.map(r => r.id === id ? { ...r, hasAiReport: true, aiReport: report } : r));
   };
   
+  const deleteRecord = async (id: string) => {
+    await Storage.deleteRecord(id);
+    setRecords(prev => prev.filter(r => r.id !== id));
+  };
+  
   // Commitment actions
   const refreshActiveCommitments = async () => {
     const data = await Storage.getActiveCommitments();
@@ -217,6 +223,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         refreshRecords,
         addRecord,
         updateRecordAiReport,
+        deleteRecord,
         refreshActiveCommitments,
         addCommitment,
         completeCommitment,

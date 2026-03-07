@@ -258,6 +258,18 @@ export async function updateRecordAiReport(id: string, report: EnergyRecord['aiR
   );
 }
 
+export async function deleteRecord(id: string): Promise<void> {
+  if (isWeb) {
+    const records = await getRecords();
+    const filtered = records.filter(r => r.id !== id);
+    await AsyncStorage.setItem('records', JSON.stringify(filtered));
+    return;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync('DELETE FROM records WHERE id = ?', [id]);
+}
+
 // ==================== Commitment CRUD ====================
 
 export async function getActiveCommitments(): Promise<Commitment[]> {

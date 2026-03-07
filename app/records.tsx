@@ -174,72 +174,52 @@ export default function RecordsPage() {
         </TouchableOpacity>
       </View>
 
-      {/* Vision Filter */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterContent}
-      >
-        <TouchableOpacity
-          style={[
-            styles.filterPill,
-            !selectedVisionId && styles.filterPillActive,
-          ]}
-          onPress={() => handleVisionFilter(null)}
-        >
-          <Text style={[
-            styles.filterPillText,
-            !selectedVisionId && styles.filterPillTextActive,
-          ]}>
-            全部
-          </Text>
-        </TouchableOpacity>
-        
-        {visions.map(vision => (
-          <TouchableOpacity
-            key={vision.id}
-            style={[
-              styles.filterPill,
-              selectedVisionId === vision.id && styles.filterPillActive,
-            ]}
-            onPress={() => handleVisionFilter(vision.id)}
+      {/* Content Area */}
+      <View style={styles.contentArea}>
+        {/* Vision Filter */}
+        <View style={styles.filterContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterContent}
           >
-            <Text style={[
-              styles.filterPillText,
-              selectedVisionId === vision.id && styles.filterPillTextActive,
-            ]}>
-              {vision.title}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Records List */}
-      {filteredRecords.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>📝</Text>
-          <Text style={styles.emptyText}>暂无记录</Text>
-          {selectedVisionId && (
-            <Text style={styles.emptySubtext}>该愿景下还没有记录</Text>
-          )}
+            <TouchableOpacity
+              style={[
+                styles.filterPill,
+                !selectedVisionId && styles.filterPillActive,
+              ]}
+              onPress={() => handleVisionFilter(null)}
+            >
+              <Text style={[
+                styles.filterPillText,
+                !selectedVisionId && styles.filterPillTextActive,
+              ]}>
+                全部
+              </Text>
+            </TouchableOpacity>
+            
+            {visions.map(vision => (
+              <TouchableOpacity
+                key={vision.id}
+                style={[
+                  styles.filterPill,
+                  selectedVisionId === vision.id && styles.filterPillActive,
+                ]}
+                onPress={() => handleVisionFilter(vision.id)}
+              >
+                <Text style={[
+                  styles.filterPillText,
+                  selectedVisionId === vision.id && styles.filterPillTextActive,
+                ]}>
+                  {vision.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
-      ) : (
-      <FlatList
-        data={groupedRecords}
-        keyExtractor={(item) => item.date}
-        renderItem={({ item: group }) => (
-          <View style={styles.dateGroup}>
-            <View style={styles.dateHeader}>
-              <View style={styles.dateLine} />
-              <Text style={styles.dateText}>{group.date}</Text>
-              <View style={styles.dateLine} />
-            </View>
-            {group.records.map(renderRecord)}
-          </View>
-        )}
-        ListFooterComponent={renderFooter}
-        ListEmptyComponent={
+
+        {/* Records List */}
+        {filteredRecords.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>📝</Text>
             <Text style={styles.emptyText}>暂无记录</Text>
@@ -247,13 +227,37 @@ export default function RecordsPage() {
               <Text style={styles.emptySubtext}>该愿景下还没有记录</Text>
             )}
           </View>
-        }
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-      />
-      )}
+        ) : (
+        <FlatList
+          data={groupedRecords}
+          keyExtractor={(item) => item.date}
+          renderItem={({ item: group }) => (
+            <View style={styles.dateGroup}>
+              <View style={styles.dateHeader}>
+                <View style={styles.dateLine} />
+                <Text style={styles.dateText}>{group.date}</Text>
+                <View style={styles.dateLine} />
+              </View>
+              {group.records.map(renderRecord)}
+            </View>
+          )}
+          ListFooterComponent={renderFooter}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyEmoji}>📝</Text>
+              <Text style={styles.emptyText}>暂无记录</Text>
+              {selectedVisionId && (
+                <Text style={styles.emptySubtext}>该愿景下还没有记录</Text>
+              )}
+            </View>
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+        />
+        )}
+      </View>
     </View>
   );
 }
@@ -284,7 +288,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.white.primary,
   },
-  headerPlaceholder: {
+headerPlaceholder: {
     width: 36,
     height: 36,
   },
@@ -299,13 +303,20 @@ const styles = StyleSheet.create({
   debugButtonText: {
     fontSize: 16,
   },
+  contentArea: {
+    flex: 1,
+  },
+  filterContainer: {
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
   filterScroll: {
-    maxHeight: 44,
+    flexGrow: 0,
   },
   filterContent: {
     paddingHorizontal: 20,
-    paddingVertical: 8,
     gap: 8,
+    alignItems: 'center',
   },
   filterPill: {
     paddingHorizontal: 12,
@@ -329,6 +340,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 40,
   },
   dateGroup: {
