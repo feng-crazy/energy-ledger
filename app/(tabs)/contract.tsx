@@ -19,8 +19,9 @@ import { useApp } from '@/store/AppContext';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Modal } from '@/components/Modal';
-import { colors, typography, spacing, borderRadius } from '@/utils/theme';
+import { colors, spacing, borderRadius } from '@/utils/theme';
 import { Commitment, ENERGY_SCORES } from '@/types';
+import { getVisionLabel, getVisionEmoji } from '@/utils/recordHelpers';
 
 type Scene = 'active' | 'empty' | 'create';
 
@@ -202,16 +203,6 @@ export default function ContractPage() {
     setScene('active');
   };
   
-  const getVisionEmoji = (visionId: string) => {
-    const vision = visions.find(v => v.id === visionId);
-    return vision?.emoji || '🎯';
-  };
-  
-  const getVisionLabel = (visionId: string) => {
-    const vision = visions.find(v => v.id === visionId);
-    return vision?.label || '';
-  };
-  
   // Success screen
   if (showSuccess) {
     return (
@@ -304,8 +295,8 @@ export default function ContractPage() {
                 <Text style={styles.commitmentText}>"{commitment.content}"</Text>
                 <View style={styles.commitmentMeta}>
                   <View style={styles.visionTag}>
-                    <Text style={styles.visionTagEmoji}>{getVisionEmoji(commitment.visionId)}</Text>
-                    <Text style={styles.visionTagText}>绑定愿景：{getVisionLabel(commitment.visionId)}</Text>
+                    <Text style={styles.visionTagEmoji}>{getVisionEmoji(commitment.visionId, visions)}</Text>
+                    <Text style={styles.visionTagText}>绑定愿景：{getVisionLabel(commitment.visionId, visions)}</Text>
                   </View>
                 </View>
               </Card>

@@ -149,7 +149,6 @@ export const shadows = {
   }),
 };
 
-// 动画时长
 export const animation = {
   duration: {
     fast: 150,

@@ -1,7 +1,7 @@
 // Storage Layer using SQLite (native) and AsyncStorage (web fallback)
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { Vision, EnergyRecord, Commitment, UserStats, AppState, AiConfig } from '@/types';
+import { Vision, EnergyRecord, Commitment, UserStats, AiConfig } from '@/types';
 
 const DB_NAME = 'energy_ledger.db';
 
@@ -450,11 +450,6 @@ export async function updateUserStats(updates: Partial<UserStats>): Promise<void
   await AsyncStorage.setItem('user_stats', JSON.stringify(updated));
 }
 
-export async function calculateDailyEnergy(date: string): Promise<number> {
-  const records = await getRecordsByDate(date);
-  return records.reduce((sum, r) => sum + r.score, 0);
-}
-
 // ==================== App State ====================
 
 export async function getHasOnboarded(): Promise<boolean> {
@@ -477,23 +472,4 @@ export async function setAiConfig(config: AiConfig): Promise<void> {
 
 export async function deleteAiConfig(): Promise<void> {
   await AsyncStorage.removeItem('ai_config');
-}
-
-// Export full app state
-export async function exportAppState(): Promise<AppState> {
-  const [visions, records, commitments, stats, hasOnboarded] = await Promise.all([
-    getVisions(),
-    getRecords(),
-    getCommitments(),
-    getUserStats(),
-    getHasOnboarded(),
-  ]);
-  
-  return {
-    visions,
-    records,
-    commitments,
-    stats,
-    hasOnboarded,
-  };
 }

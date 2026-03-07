@@ -25,6 +25,7 @@ import { Card } from '@/components/Card';
 import { AiConfigModal } from '@/components/AiConfigModal';
 import { colors, borderRadius } from '@/utils/theme';
 import { generateAiReport, isAiReportAvailable } from '@/utils/aiReport';
+import { usePagination } from '@/hooks/usePagination';
 import {
   getStateLabel,
   getStateEmoji,
@@ -78,24 +79,8 @@ export default function InsightsPage() {
     }
   };
 
-  // Pagination state
-  const PAGE_SIZE = 20;
-  const [displayedCount, setDisplayedCount] = useState(PAGE_SIZE);
-
-  // Get displayed records (pagination)
-  const displayedRecords = useMemo(() => {
-    return records.slice(0, displayedCount);
-  }, [records, displayedCount]);
-
-  // Check if there are more records to load
-  const hasMoreRecords = displayedCount < records.length;
-
-  // Load more records
-  const loadMore = () => {
-    if (hasMoreRecords) {
-      setDisplayedCount(prev => prev + PAGE_SIZE);
-    }
-  };
+  // 使用分页 Hook
+  const { displayedItems: displayedRecords, hasMore, loadMore } = usePagination(records, 20);
 
   return (
     <View style={styles.container}>
@@ -266,7 +251,7 @@ export default function InsightsPage() {
           </View>
         }
         ListFooterComponent={
-          hasMoreRecords ? (
+          hasMore ? (
             <View style={styles.footer}>
               <ActivityIndicator size="small" color={colors.flow.primary} />
             </View>

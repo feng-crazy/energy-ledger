@@ -37,8 +37,6 @@ export function EnergyBall({ score, onPress }: EnergyBallProps) {
   const ringScale2 = useSharedValue(0.8);
 
   useEffect(() => {
-    console.log('[EnergyBall] Component mounted, score:', score);
-
     // 悬浮动画 - 仅在正能量状态下启用
     floatY.value = withRepeat(
       withSequence(
@@ -88,7 +86,7 @@ export function EnergyBall({ score, onPress }: EnergyBallProps) {
     );
 
     return () => {
-      console.log('[EnergyBall] Component unmounted');
+      // Cleanup
     };
   }, []);
 
@@ -113,7 +111,6 @@ export function EnergyBall({ score, onPress }: EnergyBallProps) {
 
   // 点击事件处理
   const handlePress = async () => {
-    console.log('[EnergyBall] Ball pressed, current score:', score);
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
@@ -122,22 +119,19 @@ export function EnergyBall({ score, onPress }: EnergyBallProps) {
     onPress();
   };
 
-  // 颜色配置
-  const primaryColor = isPositive ? colors.flow.primary : colors.drain.primary;
-  const secondaryColor = isPositive ? '#00ffea' : '#c060ff';
-
-  // 发光背景颜色
-  const glowOuterColor = isPositive ? 'rgba(0, 220, 200, 0.15)' : 'rgba(160, 80, 220, 0.15)';
-  const glowInnerColor = isPositive ? 'rgba(0, 220, 200, 0.25)' : 'rgba(160, 80, 220, 0.25)';
-
-  // 阴影颜色配置
-  const shadowColor = isPositive ? '#00d4d4' : '#a050dc';
+  const colorScheme = useMemo(() => ({
+    primary: isPositive ? colors.flow.primary : colors.drain.primary,
+    secondary: isPositive ? '#00ffea' : '#c060ff',
+    glowOuter: isPositive ? 'rgba(0, 220, 200, 0.15)' : 'rgba(160, 80, 220, 0.15)',
+    glowInner: isPositive ? 'rgba(0, 220, 200, 0.25)' : 'rgba(160, 80, 220, 0.25)',
+    shadow: isPositive ? '#00d4d4' : '#a050dc',
+  }), [isPositive]);
 
   // 平台特定的阴影样式
   const platformShadowStyle = useMemo(() => {
     if (Platform.OS === 'ios') {
       return {
-        shadowColor,
+        shadowColor: colorScheme.shadow,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.6,
         shadowRadius: 24,
@@ -145,13 +139,13 @@ export function EnergyBall({ score, onPress }: EnergyBallProps) {
     }
     // Android 和 Web 使用 elevation
     return {
-      shadowColor,
+      shadowColor: colorScheme.shadow,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.4,
       shadowRadius: 16,
       elevation: 20,
     };
-  }, [shadowColor]);
+  }, [colorScheme.shadow]);
 
   // SVG 渐变 ID 使用 useMemo 确保稳定性
   const gradientIds = useMemo(() => ({
@@ -159,19 +153,17 @@ export function EnergyBall({ score, onPress }: EnergyBallProps) {
     shadow: `shadowGradient-${isPositive ? 'flow' : 'drain'}`,
   }), [isPositive]);
 
-  console.log('[EnergyBall] Rendering with primaryColor:', primaryColor, 'isPositive:', isPositive);
-
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.9}>
       <View style={styles.container}>
         {/* 脉冲环 - 使用两个独立的动画值实现延迟效果 */}
-        <Animated.View style={[styles.pulseRing, pulseRingStyle1, { borderColor: primaryColor }]} />
-        <Animated.View style={[styles.pulseRing, pulseRingStyle2, { borderColor: primaryColor }]} />
+        <Animated.View style={[styles.pulseRing, pulseRingStyle1, { borderColor: colorScheme.primary }]} />
+        <Animated.View style={[styles.pulseRing, pulseRingStyle2, { borderColor: colorScheme.primary }]} />
 
         {/* 外发光背景 */}
-        <View style={[styles.glowBackdrop, styles.glowBackdropOuter, { backgroundColor: glowOuterColor }]} />
+        <View style={[styles.glowBackdrop, styles.glowBackdropOuter, { backgroundColor: colorScheme.glowOuter }]} />
         {/* 内发光背景 */}
-        <View style={[styles.glowBackdrop, styles.glowBackdropInner, { backgroundColor: glowInnerColor }]} />
+        <View style={[styles.glowBackdrop, styles.glowBackdropInner, { backgroundColor: colorScheme.glowInner }]} />
 
         {/* 主球体容器 */}
         <Animated.View style={[styles.ballContainer, animatedStyle, platformShadowStyle]}>
@@ -187,9 +179,9 @@ export function EnergyBall({ score, onPress }: EnergyBallProps) {
                 fx={BALL_SIZE * 0.35}
                 fy={BALL_SIZE * 0.35}
               >
-                <Stop offset="0" stopColor={secondaryColor} stopOpacity="1" />
-                <Stop offset="0.5" stopColor={primaryColor} stopOpacity="0.95" />
-                <Stop offset="1" stopColor={primaryColor} stopOpacity="0.85" />
+                <Stop offset="0" stopColor={colorScheme.secondary} stopOpacity="1" />
+                <Stop offset="0.5" stopColor={colorScheme.primary} stopOpacity="0.95" />
+                <Stop offset="1" stopColor={colorScheme.primary} stopOpacity="0.85" />
               </RadialGradient>
               {/* 阴影渐变 */}
               <RadialGradient

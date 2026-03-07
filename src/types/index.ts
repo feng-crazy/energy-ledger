@@ -96,15 +96,6 @@ export interface RadarData {
   totalScore?: number;
 }
 
-// 应用状态
-export interface AppState {
-  visions: Vision[];
-  records: EnergyRecord[];
-  commitments: Commitment[];
-  stats: UserStats;
-  hasOnboarded: boolean;
-}
-
 // 预设愿景
 export const PRESET_VISIONS: Omit<Vision, 'createdAt' | 'updatedAt' | 'energyScore'>[] = [
   { id: 'health', title: '身心健康', emoji: '🏃', label: '健康', desc: '身体活力与生命力' },

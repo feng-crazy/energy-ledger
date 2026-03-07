@@ -19,6 +19,7 @@ import {
   getStateEmoji,
   getVisionLabel,
   getVisionEmoji,
+  formatDateTime,
 } from '@/utils/recordHelpers';
 
 export default function RecordDetailPage() {
@@ -28,20 +29,6 @@ export default function RecordDetailPage() {
   const [expanded, setExpanded] = useState(false);
 
   const record = records.find(r => r.id === params.id);
-
-  const formatDateTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-
-    if (isToday) return `今天 ${timeStr}`;
-    if (date.toDateString() === yesterday.toDateString()) return `昨天 ${timeStr}`;
-    return `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')} ${timeStr}`;
-  };
 
   const handleDelete = () => {
     Alert.alert(

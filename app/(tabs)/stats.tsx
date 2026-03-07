@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useApp } from '@/store/AppContext';
 import { Card } from '@/components/Card';
-import { colors, typography, spacing, borderRadius } from '@/utils/theme';
+import { colors, spacing, borderRadius } from '@/utils/theme';
 import { DailyRecordData, RadarData } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

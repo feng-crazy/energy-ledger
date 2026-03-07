@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, borderRadius, typography } from '@/utils/theme';
+import { colors, borderRadius } from '@/utils/theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'flow' | 'drain' | 'success' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';

@@ -15,7 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { useApp } from '@/store/AppContext';
 import { EnergyBall } from '@/components/EnergyBall';
 import { Card } from '@/components/Card';
-import { colors, typography, spacing, borderRadius } from '@/utils/theme';
+import { colors, spacing, borderRadius } from '@/utils/theme';
 import {
   getStateLabel,
   getStateEmoji,
@@ -64,11 +64,6 @@ export default function HomePage() {
   const handleRecordPress = async (type: 'flow' | 'drain') => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(`/record?type=${type}`);
-  };
-  
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
   
   return (

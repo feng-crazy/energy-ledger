@@ -16,7 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { useApp } from '@/store/AppContext';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { colors, typography, spacing, borderRadius } from '@/utils/theme';
+import { colors, spacing, borderRadius } from '@/utils/theme';
 import { PRESET_VISIONS, Vision } from '@/types';
 
 export default function VisionPage() {
