@@ -57,7 +57,7 @@ function LoadingSpinner() {
 export default function InsightsPage() {
   const router = useRouter();
   const { records, visions, updateRecordAiReport, aiConfig, saveAiConfig, clearAiConfig } = useApp();
-  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
 
@@ -66,7 +66,7 @@ export default function InsightsPage() {
     if (!record || record.hasAiReport || !aiConfig) return;
 
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setAnalyzingId(recordId);
+    setAnalyzingIds(prev => new Set(prev).add(recordId));
 
     try {
       const report = await generateAiReport(record, aiConfig, visions);
@@ -74,7 +74,11 @@ export default function InsightsPage() {
     } catch (error) {
       console.error('Failed to generate AI report:', error);
     } finally {
-      setAnalyzingId(null);
+      setAnalyzingIds(prev => {
+        const next = new Set(prev);
+        next.delete(recordId);
+        return next;
+      });
       setExpandedId(recordId);
     }
   };
@@ -178,9 +182,9 @@ export default function InsightsPage() {
                 <TouchableOpacity
                   style={styles.analyzeButton}
                   onPress={() => handleAnalyze(record.id)}
-                  disabled={analyzingId === record.id}
+                  disabled={analyzingIds.has(record.id)}
                 >
-                  {analyzingId === record.id ? (
+                  {analyzingIds.has(record.id) ? (
                     <>
                       <LoadingSpinner />
                       <Text style={styles.analyzeButtonText}>AI 深度分析中...</Text>

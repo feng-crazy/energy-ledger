@@ -21,12 +21,18 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.hedengfeng.energyledger"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "scheme": "energy-ledger",
-    "newArchEnabled": true
+    "newArchEnabled": true,
+    "extra": {
+      "eas": {
+        "projectId": "693139dc-202f-4232-81c7-c52ae674fd07"
+      }
+    }
   }
 }
