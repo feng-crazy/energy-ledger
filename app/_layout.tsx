@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { AppProvider, useApp } from '@/store/AppContext';
 import { colors } from '@/utils/theme';
@@ -57,9 +58,11 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
-      <AppProvider>
-        <RootLayoutNav />
-      </AppProvider>
+      <KeyboardProvider>
+        <AppProvider>
+          <RootLayoutNav />
+        </AppProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

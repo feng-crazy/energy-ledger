@@ -4,13 +4,12 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   Alert,
   Platform,
-  KeyboardAvoidingView,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, X, Check, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -33,7 +32,7 @@ export default function VisionPage() {
   const [customEmoji, setCustomEmoji] = useState('🎯');
   const [detailInput, setDetailInput] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [expandedDescId, setExpandedDescId] = useState<string | null>(null);
+  
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingDetail, setEditingDetail] = useState('');
   const [editingDescId, setEditingDescId] = useState<string | null>(null);
@@ -299,11 +298,12 @@ export default function VisionPage() {
         </TouchableOpacity>
       </View>
       
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-        style={styles.keyboardView}
+      <KeyboardAwareScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        bottomOffset={50}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {/* Intro */}
         <Card style={styles.introCard} variant="flow">
           <Text style={styles.introText}>
@@ -334,22 +334,13 @@ export default function VisionPage() {
                   <Text style={styles.visionTitle}>{vision.title}</Text>
                   <View style={styles.visionMeta}>
                     <Text style={styles.visionLabel}>{vision.label}</Text>
-                    <TouchableOpacity
-                      onPress={() => setExpandedDescId(expandedDescId === vision.id ? null : vision.id)}
-                      activeOpacity={0.7}
-                      style={styles.visionDescTouch}
+                    <Text
+                      style={styles.visionDesc}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
                     >
-                      <Text
-                        style={[
-                          styles.visionDesc,
-                          expandedDescId === vision.id && styles.visionDescExpanded,
-                        ]}
-                        numberOfLines={expandedDescId === vision.id ? 0 : 1}
-                        ellipsizeMode="tail"
-                      >
-                        {vision.desc}
-                      </Text>
-                    </TouchableOpacity>
+                      {vision.desc}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -629,25 +620,21 @@ export default function VisionPage() {
                       size="lg"
                       disabled={visions.length >= 3 || !detailInput}
                     />
-                  </>
-                )}
-              </View>
-            )}
-          </Card>
-        )}
-      </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
-  );
+</>
+              )}
+            </View>
+          )}
+        </Card>
+      )}
+    </KeyboardAwareScrollView>
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.primary,
-  },
-  keyboardView: {
-    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -767,15 +754,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.white.muted,
     flexShrink: 1,
-  },
-  visionDescTouch: {
-    flexShrink: 1,
-  },
-  visionDescExpanded: {
-    fontSize: 12,
-    color: colors.white.secondary,
-    lineHeight: 20,
-    marginTop: 4,
   },
   visionActions: {
     flexDirection: 'row',
