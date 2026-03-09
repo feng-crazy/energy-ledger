@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import WheelPicker from '@quidone/react-native-wheel-picker';
 import { useRouter } from 'expo-router';
@@ -354,7 +355,11 @@ export default function ContractPage() {
       )}
       
       {scene === 'create' && (
-        <ScrollView style={styles.content} contentContainerStyle={styles.createContentContainer}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          style={styles.keyboardView}
+        >
+          <ScrollView style={styles.content} contentContainerStyle={styles.createContentContainer}>
           <Text style={styles.createHint}>微小有力量 · 具体可执行</Text>
           
           {/* Step 1 */}
@@ -464,6 +469,7 @@ export default function ContractPage() {
             })}
           </View>
         </ScrollView>
+        </KeyboardAvoidingView>
       )}
       
       {scene === 'create' && (
@@ -481,7 +487,11 @@ export default function ContractPage() {
       
       {/* Fail Modal */}
       <Modal visible={showFailModal} onClose={() => setShowFailModal(false)}>
-        <Text style={styles.modalTitle}>是什么干扰了你？</Text>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          style={styles.modalKeyboardView}
+        >
+          <Text style={styles.modalTitle}>是什么干扰了你？</Text>
         
         <Text style={styles.modalLabel}>💬 请简单描述原因：</Text>
         <TextInput
@@ -526,6 +536,7 @@ export default function ContractPage() {
           variant="flow"
           size="lg"
         />
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -535,6 +546,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.primary,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  modalKeyboardView: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

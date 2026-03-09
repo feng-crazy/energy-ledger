@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, X, Check, ChevronRight } from 'lucide-react-native';
@@ -298,7 +299,11 @@ export default function VisionPage() {
         </TouchableOpacity>
       </View>
       
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        style={styles.keyboardView}
+      >
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {/* Intro */}
         <Card style={styles.introCard} variant="flow">
           <Text style={styles.introText}>
@@ -631,6 +636,7 @@ export default function VisionPage() {
           </Card>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -639,6 +645,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.primary,
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

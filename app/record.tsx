@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   TextInput,
   Dimensions,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Check, X } from 'lucide-react-native';
@@ -159,34 +161,37 @@ export default function RecordPage() {
         </View>
       </View>
       
-      {/* Type Toggle (Step 1 only) */}
-      {step === 1 && (
-        <View style={styles.typeToggle}>
-          {(['drain', 'flow'] as EnergyType[]).map((t) => (
-            <TouchableOpacity
-              key={t}
-              style={[
-                styles.typeButton,
-                recordType === t && (t === 'drain' ? styles.typeButtonDrain : styles.typeButtonFlow),
-              ]}
-              onPress={() => {
-                setRecordType(t);
-                setSelectedState(null);
-              }}
-            >
-              <Text style={[
-                styles.typeButtonText,
-                recordType === t && styles.typeButtonTextActive,
-              ]}>
-                {t === 'drain' ? '🌫️ 耗散态' : '🌊 聚能态'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-      
-      {/* Content */}
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        style={styles.keyboardView}
+      >
+        {step === 1 && (
+          <View style={styles.typeToggle}>
+            {(['drain', 'flow'] as EnergyType[]).map((t) => (
+              <TouchableOpacity
+                key={t}
+                style={[
+                  styles.typeButton,
+                  recordType === t && (t === 'drain' ? styles.typeButtonDrain : styles.typeButtonFlow),
+                ]}
+                onPress={() => {
+                  setRecordType(t);
+                  setSelectedState(null);
+                }}
+              >
+                <Text style={[
+                  styles.typeButtonText,
+                  recordType === t && styles.typeButtonTextActive,
+                ]}>
+                  {t === 'drain' ? '🌫️ 耗散态' : '🌊 聚能态'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        
+        {/* Content */}
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {step === 1 && (
           <Animated.View entering={FadeIn}>
             <Text style={styles.sectionTitle}>此刻，你的身体/心里感觉像什么？</Text>
@@ -328,6 +333,7 @@ export default function RecordPage() {
           </Animated.View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
       
       {/* Bottom Button */}
       <View style={styles.bottomBar}>
@@ -347,6 +353,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.primary,
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
