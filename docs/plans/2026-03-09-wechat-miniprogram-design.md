@@ -239,7 +239,7 @@ interface AppContextType {
 import Taro from '@tarojs/taro';
 import { EnergyRecord, Vision, AiReport, AiConfig } from '@/types';
 
-const AI_SYSTEM_PROMPT = `你是一位哲学、灵性修行和神经科学领域的专家...`;
+const AI_SYSTEM_PROMPT = `你是一位心理学、灵性修行和神经科学领域的专家...`;
 
 export async function analyzeRecord(
   record: EnergyRecord,
@@ -279,7 +279,7 @@ function buildPrompt(record: EnergyRecord, visions: Vision[]): string {
 愿景：${visionLabels}
 日志：${record.journal}
 
-请从哲学、神经科学、个人成长三个角度进行分析，并给出建议。`;
+请从心理学、神经科学、个人成长三个角度进行分析，并给出建议。`;
 }
 
 function parseAiReport(data: any): AiReport {

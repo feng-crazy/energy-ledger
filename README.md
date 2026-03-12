@@ -159,7 +159,7 @@ npm run web
 | 记录列表 | ✅ | `app/(tabs)/insights.tsx:139-242` |
 | AI 分析按钮 | ✅ | `app/(tabs)/insights.tsx:175-193` |
 | AI 报告展示 | ✅ | `app/(tabs)/insights.tsx:196-239` |
-| 哲学视角 | ✅ | `app/(tabs)/insights.tsx:28` |
+| 心理学视角 | ✅ | `app/(tabs)/insights.tsx:28` |
 | 神经科学分析 | ✅ | `app/(tabs)/insights.tsx:29` |
 | 个性化建议 | ✅ | `app/(tabs)/insights.tsx:30` |
 

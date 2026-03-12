@@ -1057,11 +1057,11 @@ git commit -m "feat: 添加状态管理 Context"
 import Taro from '@tarojs/taro';
 import { EnergyRecord, Vision, AiReport, AiConfig } from '@/types';
 
-const AI_SYSTEM_PROMPT = `你是一位融合哲学、灵性修行和神经科学视角的能量分析师。
+const AI_SYSTEM_PROMPT = `你是一位融合心理学、灵性修行和神经科学视角的能量分析师。
 
 当用户分享他们的能量状态记录时，请从以下三个角度进行分析：
 
-1. 哲学视角：从存在主义、斯多葛哲学或东方哲学角度解读这个状态
+1. 心理学视角：从存在主义、斯多葛心理学或东方心理学角度解读这个状态
 2. 神经科学分析：解释可能的大脑机制、神经递质变化
 3. 个性化建议：给出具体、可执行的改进建议
 
@@ -1116,7 +1116,7 @@ function buildPrompt(record: EnergyRecord, visions: Vision[]): string {
 用户日志：
 "${record.journal}"
 
-请从哲学、神经科学、个人成长三个角度进行分析，并给出具体建议。请用 JSON 格式返回，包含 philosophy、neuroscience、suggestion 三个字段。`;
+请从心理学、神经科学、个人成长三个角度进行分析，并给出具体建议。请用 JSON 格式返回，包含 philosophy、neuroscience、suggestion 三个字段。`;
 }
 
 function parseAiReport(data: any, type: 'flow' | 'drain'): AiReport {
@@ -1129,7 +1129,7 @@ function parseAiReport(data: any, type: 'flow' | 'drain'): AiReport {
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       return {
-        philosophy: parsed.philosophy || '无法解析哲学分析',
+        philosophy: parsed.philosophy || '无法解析心理学分析',
         neuroscience: parsed.neuroscience || '无法解析神经科学分析',
         suggestion: parsed.suggestion || '无法解析建议',
         generatedAt: Date.now(),
