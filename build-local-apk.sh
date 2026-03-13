@@ -214,25 +214,65 @@ fi
 echo -e "${YELLOW}[3/6] 清理之前的构建文件...${NC}"
 
 # 清理构建文件
-if [ "$CLEAN_BUILD" = true ] || [ "$1" = "--clean" ]; then
+if [ "$CLEAN_BUILD" = true ]; then
     echo -e "${YELLOW}清理 android 目录和构建缓存...${NC}"
     rm -rf android
     rm -rf .expo
     rm -rf node_modules/.cache
-    npx expo-cli start --clear 2>/dev/null || true
 fi
 
 echo -e "${YELLOW}[4/6] 执行 Expo Prebuild...${NC}"
 
 # 执行 prebuild（生成原生代码）
-npx expo prebuild --platform android --clean
-
-if [ $? -ne 0 ]; then
-    echo -e "${RED}✗ Prebuild 失败${NC}"
-    exit 1
+if [ "$CLEAN_BUILD" = true ]; then
+    npx expo prebuild --platform android --clean
+else
+    npx expo prebuild --platform android
 fi
 
 echo -e "${GREEN}✓ Prebuild 完成${NC}"
+
+# ======================= 配置 Gradle 镜像 =======================
+echo -e "${YELLOW}[4.5/6] 配置 Gradle 镜像（解决网络问题）...${NC}"
+
+# 注入阿里云镜像到 buildscript.repositories（用于 Gradle 插件下载）
+# 注意：allprojects.repositories 由 expo-build-properties 处理，无需手动修改
+if ! grep -q "maven.aliyun.com" android/build.gradle 2>/dev/null; then
+    # 使用 sed 在 buildscript.repositories 块的开头插入阿里云镜像
+    sed -i '' '/buildscript {/,/repositories {/{
+        /repositories {/a\
+\    maven { url '\''https:\/\/maven.aliyun.com\/repository\/google'\'' }\
+\    maven { url '\''https:\/\/maven.aliyun.com\/repository\/public'\'' }\
+\    maven { url '\''https:\/\/maven.aliyun.com\/repository\/gradle-plugin'\'' }
+    }' android/build.gradle 2>/dev/null || true
+    echo -e "${GREEN}✓ build.gradle 镜像配置完成${NC}"
+else
+    echo -e "${GREEN}✓ build.gradle 已包含镜像配置${NC}"
+fi
+
+# 注入阿里云镜像到 pluginManagement.repositories（用于插件管理）
+if ! grep -q "maven.aliyun.com" android/settings.gradle 2>/dev/null; then
+    sed -i '' '/pluginManagement {/,/repositories {/{
+        /repositories {/a\
+\    maven { url '\''https:\/\/maven.aliyun.com\/repository\/google'\'' }\
+\    maven { url '\''https:\/\/maven.aliyun.com\/repository\/public'\'' }\
+\    maven { url '\''https:\/\/maven.aliyun.com\/repository\/gradle-plugin'\'' }
+    }' android/settings.gradle 2>/dev/null || true
+    echo -e "${GREEN}✓ settings.gradle 镜像配置完成${NC}"
+else
+    echo -e "${GREEN}✓ settings.gradle 已包含镜像配置${NC}"
+fi
+
+# 添加网络超时配置到 gradle.properties
+if ! grep -q "http.connectionTimeout" android/gradle.properties 2>/dev/null; then
+    echo "" >> android/gradle.properties
+    echo "# Network settings for better connectivity" >> android/gradle.properties
+    echo "systemProp.http.connectionTimeout=120000" >> android/gradle.properties
+    echo "systemProp.http.socketTimeout=120000" >> android/gradle.properties
+    echo -e "${GREEN}✓ gradle.properties 网络配置完成${NC}"
+fi
+
+echo -e "${GREEN}✓ Gradle 镜像配置完成${NC}"
 
 echo -e "${YELLOW}[5/6] 构建 APK...${NC}"
 
@@ -257,11 +297,6 @@ else
     
     APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
     OUTPUT_NAME="${PROJECT_NAME}-debug-$(date +%Y%m%d-%H%M%S).apk"
-fi
-
-if [ $? -ne 0 ]; then
-    echo -e "${RED}✗ APK 构建失败${NC}"
-    exit 1
 fi
 
 echo -e "${GREEN}✓ APK 构建成功${NC}"

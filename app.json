@@ -33,6 +33,20 @@
       "eas": {
         "projectId": "693139dc-202f-4232-81c7-c52ae674fd07"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraMavenRepos": [
+              "https://maven.aliyun.com/repository/google",
+              "https://maven.aliyun.com/repository/public",
+              "https://maven.aliyun.com/repository/jcenter"
+            ]
+          }
+        }
+      ]
+    ]
   }
 }

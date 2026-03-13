@@ -63,12 +63,14 @@ export interface Commitment {
   id: string;
   content: string;
   visionId: string;
-  timeOption: '1hour' | 'today' | 'week';
+  timeOption: '1hour' | 'today' | 'week' | 'daily';
   deadline: number;
   createdAt: number;
   status: 'active' | 'completed' | 'failed';
   failReason?: string;
   failTag?: string;
+  lastCompletedDate?: string;
+  streakCount?: number;
 }
 
 // 用户统计

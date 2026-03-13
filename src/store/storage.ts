@@ -63,7 +63,9 @@ export async function initDatabase(): Promise<void> {
       createdAt INTEGER NOT NULL,
       status TEXT NOT NULL DEFAULT 'active',
       failReason TEXT,
-      failTag TEXT
+      failTag TEXT,
+      lastCompletedDate TEXT,
+      streakCount INTEGER DEFAULT 0
     );
     
     CREATE INDEX IF NOT EXISTS idx_records_createdAt ON records(createdAt);
@@ -393,6 +395,25 @@ export async function completeCommitment(id: string): Promise<void> {
   
   if (!db) await initDatabase();
   await db.runAsync("UPDATE commitments SET status = 'completed' WHERE id = ?", [id]);
+}
+
+export async function completeDailyCommitment(id: string, lastCompletedDate: string, streakCount: number): Promise<void> {
+  if (isWeb) {
+    const commitments = await getCommitments();
+    const index = commitments.findIndex(c => c.id === id);
+    if (index !== -1) {
+      commitments[index].lastCompletedDate = lastCompletedDate;
+      commitments[index].streakCount = streakCount;
+      await AsyncStorage.setItem('commitments', JSON.stringify(commitments));
+    }
+    return;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync(
+    "UPDATE commitments SET lastCompletedDate = ?, streakCount = ? WHERE id = ?",
+    [lastCompletedDate, streakCount, id]
+  );
 }
 
 export async function failCommitment(id: string, reason?: string, tag?: string): Promise<void> {

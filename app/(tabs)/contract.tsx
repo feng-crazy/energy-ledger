@@ -59,6 +59,7 @@ export default function ContractPage() {
   const [selectedHours, setSelectedHours] = useState(1);
   const [selectedMinutes, setSelectedMinutes] = useState(0);
   const [selectedVision, setSelectedVision] = useState<string | null>(null);
+  const [timeType, setTimeType] = useState<'once' | 'daily'>('once');
   
   // Update scene based on active commitments
   useEffect(() => {
@@ -176,23 +177,27 @@ export default function ContractPage() {
     
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
-    const now = Date.now();
-    const totalMilliseconds = (selectedDays * 24 * 60 * 60 * 1000) + 
-                              (selectedHours * 60 * 60 * 1000) + 
-                              (selectedMinutes * 60 * 1000);
-    const deadline = now + totalMilliseconds;
+    let deadline: number;
+    let timeOptionVal: '1hour' | 'today' | 'week' | 'daily';
     
-    // Generate time description
-    const timeParts = [];
-    if (selectedDays > 0) timeParts.push(`${selectedDays}天`);
-    if (selectedHours > 0) timeParts.push(`${selectedHours}小时`);
-    if (selectedMinutes > 0) timeParts.push(`${selectedMinutes}分钟`);
-    const timeOption = timeParts.join('') || '立即';
+    if (timeType === 'daily') {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      deadline = today.getTime();
+      timeOptionVal = 'daily';
+    } else {
+      const now = Date.now();
+      const totalMilliseconds = (selectedDays * 24 * 60 * 60 * 1000) + 
+                                (selectedHours * 60 * 60 * 1000) + 
+                                (selectedMinutes * 60 * 1000);
+      deadline = now + totalMilliseconds;
+      timeOptionVal = 'today';
+    }
     
     await addCommitment({
       content: commitment,
       visionId: selectedVision,
-      timeOption: 'custom' as any,
+      timeOption: timeOptionVal,
       deadline,
     });
     
@@ -201,6 +206,7 @@ export default function ContractPage() {
     setSelectedHours(1);
     setSelectedMinutes(0);
     setSelectedVision(null);
+    setTimeType('once');
     setScene('active');
   };
   
@@ -275,13 +281,25 @@ export default function ContractPage() {
           
           {activeCommitments.map((commitment) => (
             <View key={commitment.id} style={styles.commitmentItem}>
-              <View style={styles.countdownCard}>
-                <Text style={styles.countdownEmoji}>⏰</Text>
-                <View>
-                  <Text style={styles.countdownLabel}>剩余时间</Text>
-                  <Text style={styles.countdownValue}>{countdowns[commitment.id] || '00 : 00 : 00'}</Text>
+              {commitment.timeOption === 'daily' ? (
+                <View style={styles.countdownCard}>
+                  <Text style={styles.countdownEmoji}>🔄</Text>
+                  <View>
+                    <Text style={styles.countdownLabel}>每日承诺</Text>
+                    <Text style={styles.countdownValue}>
+                      {commitment.streakCount ? `连续 ${commitment.streakCount} 天 🔥` : '每天重复'}
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              ) : (
+                <View style={styles.countdownCard}>
+                  <Text style={styles.countdownEmoji}>⏰</Text>
+                  <View>
+                    <Text style={styles.countdownLabel}>剩余时间</Text>
+                    <Text style={styles.countdownValue}>{countdowns[commitment.id] || '00 : 00 : 00'}</Text>
+                  </View>
+                </View>
+              )}
               
               <Card style={styles.commitmentCard}>
                 <View style={styles.commitmentHeader}>
@@ -381,6 +399,23 @@ export default function ContractPage() {
           
           {/* Step 2 */}
           <Text style={styles.stepTitle}>2 · 什么时候完成？</Text>
+          
+          <View style={styles.timeTypeRow}>
+            <TouchableOpacity
+              style={[styles.timeTypeBtn, timeType === 'once' && styles.timeTypeBtnActive]}
+              onPress={() => setTimeType('once')}
+            >
+              <Text style={[styles.timeTypeBtnText, timeType === 'once' && styles.timeTypeBtnTextActive]}>一次性</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.timeTypeBtn, timeType === 'daily' && styles.timeTypeBtnActive]}
+              onPress={() => setTimeType('daily')}
+            >
+              <Text style={[styles.timeTypeBtnText, timeType === 'daily' && styles.timeTypeBtnTextActive]}>每天</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {timeType === 'once' ? (
           <View style={styles.timePickerContainer}>
 {/* Days Picker */}
             <View style={styles.pickerColumn}>
@@ -436,6 +471,11 @@ export default function ContractPage() {
               />
             </View>
           </View>
+          ) : (
+            <View style={styles.dailyTimeDisplay}>
+              <Text style={styles.dailyTimeText}>每天 · 今日24:00截止</Text>
+            </View>
+          )}
           
           {/* Step 3 */}
           <Text style={styles.stepTitle}>3 · 这个承诺为了什么愿景？</Text>
@@ -805,6 +845,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginBottom: 8,
+  },
+  timeTypeRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  timeTypeBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+  },
+  timeTypeBtnActive: {
+    backgroundColor: 'rgba(0, 180, 180, 0.2)',
+    borderColor: 'rgba(0, 200, 200, 0.5)',
+  },
+  timeTypeBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.white.muted,
+  },
+  timeTypeBtnTextActive: {
+    color: colors.flow.primary,
+  },
+  dailyTimeDisplay: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  dailyTimeText: {
+    fontSize: 16,
+    color: colors.flow.primary,
+    fontWeight: '600',
   },
   pickerColumn: {
     flex: 1,

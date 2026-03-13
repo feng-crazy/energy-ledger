@@ -186,8 +186,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    await Storage.completeCommitment(id);
-    await refreshActiveCommitments();
+    const isDaily = commitment.timeOption === 'daily';
+    const today = new Date().toISOString().split('T')[0];
+    
+    if (isDaily) {
+      const newStreakCount = (commitment.streakCount || 0) + 1;
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(23, 59, 59, 999);
+      const tomorrowDeadline = tomorrow.getTime();
+      
+      await Storage.completeDailyCommitment(id, today, newStreakCount);
+      await Storage.addCommitment({
+        content: commitment.content,
+        visionId: commitment.visionId,
+        timeOption: 'daily',
+        deadline: tomorrowDeadline,
+        lastCompletedDate: today,
+        streakCount: newStreakCount,
+      });
+      await refreshActiveCommitments();
+    } else {
+      await Storage.completeCommitment(id);
+      await refreshActiveCommitments();
+    }
     
     if (commitment.visionId) {
       await Storage.updateVisionEnergyScore(commitment.visionId, ENERGY_SCORES.COMMITMENT_BONUS);
