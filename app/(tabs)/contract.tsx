@@ -284,7 +284,7 @@ export default function ContractPage() {
             </View>
           </Card>
 
-          {activeCommitments.map((commitment) => (
+          {activeCommitments.map((commitment, index) => (
             <View key={commitment.id} style={styles.commitmentItem}>
               {commitment.timeOption === 'daily' ? (
                 <View style={styles.countdownCard}>
@@ -352,6 +352,11 @@ export default function ContractPage() {
                     icon={<X size={18} color={colors.white.tertiary} />}
                   />
                 </View>
+              )}
+
+              {/* 承诺之间的分割线 - 最后一个不显示 */}
+              {index < activeCommitments.length - 1 && (
+                <View style={styles.commitmentDivider} />
               )}
             </View>
           ))}
@@ -722,6 +727,11 @@ const styles = StyleSheet.create({
   },
   commitmentItem: {
     marginBottom: 32,
+  },
+  commitmentDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginTop: 16,
   },
   commitmentCard: {
     marginBottom: 16,
