@@ -80,6 +80,10 @@ export interface UserStats {
   maxStreak: number;
   lastRecordDate: string;
   completedCommitments: number;
+  totalCommitments: number;
+  commitmentStreak: number;
+  lastCommitmentActivityDate: string;
+  lastDailyCountDate: string;
 }
 
 // 每日记录数据

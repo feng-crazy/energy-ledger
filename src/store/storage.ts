@@ -86,6 +86,21 @@ export async function initDatabase(): Promise<void> {
   } catch (error) {
     console.warn('Vision energyScore migration failed:', error);
   }
+
+  try {
+    await db.runAsync(`ALTER TABLE commitments ADD COLUMN lastCompletedDate TEXT`);
+  } catch { /* ignore */ }
+  
+  try {
+    await db.runAsync(`ALTER TABLE commitments ADD COLUMN streakCount INTEGER DEFAULT 0`);
+  } catch { /* ignore */ }
+
+  // Migrate existing stats with new fields
+  try {
+    await migrateUserStatsFields();
+  } catch (error) {
+    console.warn('UserStats fields migration failed:', error);
+  }
 }
 
 // Migrate existing visions to have energyScore
@@ -102,6 +117,30 @@ async function migrateVisionEnergyScore(): Promise<void> {
       [totalScore, vision.id]
     );
   }
+}
+
+// Migrate existing UserStats with new fields
+async function migrateUserStatsFields(): Promise<void> {
+  const statsStr = await AsyncStorage.getItem('user_stats');
+  if (!statsStr) return;
+  
+  const stats = JSON.parse(statsStr);
+  
+  // Add new fields if missing
+  if (stats.totalCommitments === undefined) {
+    stats.totalCommitments = 0;
+  }
+  if (stats.commitmentStreak === undefined) {
+    stats.commitmentStreak = 0;
+  }
+  if (stats.lastCommitmentActivityDate === undefined) {
+    stats.lastCommitmentActivityDate = '';
+  }
+  if (stats.lastDailyCountDate === undefined) {
+    stats.lastDailyCountDate = '';
+  }
+  
+  await AsyncStorage.setItem('user_stats', JSON.stringify(stats));
 }
 
 // ==================== Utility Functions ====================
@@ -436,6 +475,24 @@ export async function failCommitment(id: string, reason?: string, tag?: string):
   );
 }
 
+export async function resetDailyCommitmentStreak(id: string): Promise<void> {
+  if (isWeb) {
+    const commitments = await getCommitments();
+    const index = commitments.findIndex(c => c.id === id);
+    if (index !== -1) {
+      commitments[index].streakCount = 0;
+      await AsyncStorage.setItem('commitments', JSON.stringify(commitments));
+    }
+    return;
+  }
+  
+  if (!db) await initDatabase();
+  await db.runAsync(
+    "UPDATE commitments SET streakCount = 0 WHERE id = ?",
+    [id]
+  );
+}
+
 export async function deleteCommitment(id: string): Promise<void> {
   if (isWeb) {
     const commitments = await getCommitments();
@@ -462,6 +519,10 @@ export async function getUserStats(): Promise<UserStats> {
     maxStreak: 0,
     lastRecordDate: '',
     completedCommitments: 0,
+    totalCommitments: 0,
+    commitmentStreak: 0,
+    lastCommitmentActivityDate: '',
+    lastDailyCountDate: '',
   };
 }
 

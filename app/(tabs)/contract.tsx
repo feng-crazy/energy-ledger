@@ -43,8 +43,8 @@ const MINUTES = generateNumbers(0, 59);
 
 export default function ContractPage() {
   const router = useRouter();
-  const { visions, activeCommitments, stats, addCommitment, completeCommitment, failCommitment, deleteCommitment } = useApp();
-  
+  const { visions, activeCommitments, stats, addCommitment, completeCommitment, failCommitment, deleteCommitment, checkDailyCommitments } = useApp();
+
   const [scene, setScene] = useState<Scene>('active');
   const [showFailModal, setShowFailModal] = useState(false);
   const [failReason, setFailReason] = useState('');
@@ -52,7 +52,7 @@ export default function ContractPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [commitmentEnergy, setCommitmentEnergy] = useState(0);
   const [countdowns, setCountdowns] = useState<Record<string, string>>({});
-  
+
   // Create form state
   const [commitment, setCommitment] = useState('');
   const [selectedDays, setSelectedDays] = useState(0);
@@ -60,7 +60,7 @@ export default function ContractPage() {
   const [selectedMinutes, setSelectedMinutes] = useState(0);
   const [selectedVision, setSelectedVision] = useState<string | null>(null);
   const [timeType, setTimeType] = useState<'once' | 'daily'>('once');
-  
+
   // Update scene based on active commitments
   useEffect(() => {
     if (activeCommitments.length > 0) {
@@ -69,28 +69,33 @@ export default function ContractPage() {
       setScene('empty');
     }
   }, [activeCommitments]);
-  
+
+  // Check daily commitments count on mount
+  useEffect(() => {
+    checkDailyCommitments();
+  }, [checkDailyCommitments]);
+
   // Countdown timers for each commitment
   useEffect(() => {
     if (activeCommitments.length === 0) return;
-    
+
     const updateCountdowns = () => {
       const now = Date.now();
       const newCountdowns: Record<string, string> = {};
-      
+
       activeCommitments.forEach((c: Commitment) => {
         const remaining = c.deadline - now;
-        
+
         if (remaining <= 0) {
           newCountdowns[c.id] = '00 : 00 : 00';
           return;
         }
-        
+
         const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
         const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
-        
+
         // Show days only if > 0
         if (days > 0) {
           newCountdowns[c.id] = `${days}天 ${hours.toString().padStart(2, '0')} : ${minutes.toString().padStart(2, '0')} : ${seconds.toString().padStart(2, '0')}`;
@@ -98,50 +103,47 @@ export default function ContractPage() {
           newCountdowns[c.id] = `${hours.toString().padStart(2, '0')} : ${minutes.toString().padStart(2, '0')} : ${seconds.toString().padStart(2, '0')}`;
         }
       });
-      
+
       setCountdowns(newCountdowns);
     };
-    
+
     updateCountdowns();
     const interval = setInterval(updateCountdowns, 1000);
     return () => clearInterval(interval);
   }, [activeCommitments]);
-  
+
   const handleDone = async (commitmentId: string) => {
+    const commitment = activeCommitments.find(c => c.id === commitmentId);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await completeCommitment(commitmentId);
     setCommitmentEnergy(ENERGY_SCORES.COMMITMENT_BONUS);
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);
-      if (activeCommitments.length <= 1) {
-        setScene('empty');
-      }
     }, 2000);
   };
-  
+
   const [pendingFailCommitmentId, setPendingFailCommitmentId] = useState<string | null>(null);
-  
+
   const handleFailClick = (commitmentId: string) => {
     setPendingFailCommitmentId(commitmentId);
     setShowFailModal(true);
   };
-  
+
   const handleFailSubmit = async () => {
     if (!pendingFailCommitmentId) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await failCommitment(pendingFailCommitmentId, failReason, failTag || undefined);
     setShowFailModal(false);
     setPendingFailCommitmentId(null);
-    if (activeCommitments.length <= 1) {
-      setScene('empty');
-    }
+    setFailReason('');
+    setFailTag(null);
   };
-  
+
   const handleDelete = async (id: string) => {
     const commitmentToDelete = activeCommitments.find(c => c.id === id);
     if (!commitmentToDelete) return;
-    
+
     const confirmed = await new Promise<boolean>((resolve) => {
       if (Platform.OS === 'web') {
         const result = confirm(
@@ -159,27 +161,24 @@ export default function ContractPage() {
         );
       }
     });
-    
+
     if (!confirmed) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
-    
+
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await deleteCommitment(id);
-    if (activeCommitments.length <= 1) {
-      setScene('empty');
-    }
   };
-  
+
   const handleCreate = async () => {
     if (!commitment || !selectedVision) return;
-    
+
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
+
     let deadline: number;
     let timeOptionVal: '1hour' | 'today' | 'week' | 'daily';
-    
+
     if (timeType === 'daily') {
       const today = new Date();
       today.setHours(23, 59, 59, 999);
@@ -187,20 +186,20 @@ export default function ContractPage() {
       timeOptionVal = 'daily';
     } else {
       const now = Date.now();
-      const totalMilliseconds = (selectedDays * 24 * 60 * 60 * 1000) + 
-                                (selectedHours * 60 * 60 * 1000) + 
-                                (selectedMinutes * 60 * 1000);
+      const totalMilliseconds = (selectedDays * 24 * 60 * 60 * 1000) +
+        (selectedHours * 60 * 60 * 1000) +
+        (selectedMinutes * 60 * 1000);
       deadline = now + totalMilliseconds;
       timeOptionVal = 'today';
     }
-    
+
     await addCommitment({
       content: commitment,
       visionId: selectedVision,
       timeOption: timeOptionVal,
       deadline,
     });
-    
+
     setCommitment('');
     setSelectedDays(0);
     setSelectedHours(1);
@@ -209,7 +208,7 @@ export default function ContractPage() {
     setTimeType('once');
     setScene('active');
   };
-  
+
   // Success screen
   if (showSuccess) {
     return (
@@ -225,13 +224,13 @@ export default function ContractPage() {
       </View>
     );
   }
-  
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         {scene === 'create' ? (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => setScene(activeCommitments.length > 0 ? 'active' : 'empty')}
           >
@@ -243,42 +242,48 @@ export default function ContractPage() {
         <Text style={styles.headerTitle}>能量加油站</Text>
         <View style={styles.headerSpacer} />
       </View>
-      
+
       {scene === 'active' && activeCommitments.length > 0 && (
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-          {/* Energy Overview */}
+          {/* Commitment Stats Overview */}
           <Card style={styles.energyCard} variant="flow">
-            <View style={styles.energyHeader}>
-              <View>
-                <Text style={styles.energyLabel}>当前能量值</Text>
-                <Text style={styles.energyValue}>⚡️ {stats.totalEnergy}</Text>
-              </View>
-              <View style={styles.streakDisplay}>
-                <Text style={styles.energyLabel}>连续完成</Text>
-                <Text style={styles.streakValue}>🔥 {stats.completedCommitments} 天</Text>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>连续承诺天数</Text>
+                <Text style={styles.streakValue}>🔥 {stats.commitmentStreak} 天</Text>
               </View>
             </View>
-            <View style={styles.energyBar}>
-              <View 
-                style={[
-                  styles.energyBarFill, 
-                  { 
-                    width: `${stats.totalEnergy > 0 && stats.totalEnergy % 100 === 0 ? 100 : stats.totalEnergy % 100}%`,
-                    backgroundColor: colors.flow.primary,
-                  }
-                ]} 
-              />
-            </View>
-            <Text style={styles.energyNote}>
-              阶段 {Math.floor(stats.totalEnergy / 100)} · {stats.totalEnergy > 0 && stats.totalEnergy % 100 === 0 ? 100 : stats.totalEnergy % 100}/100
-              {stats.totalEnergy >= 100 && (
-                <Text style={styles.energyNoteNext}>
-                  · 距下阶段还需 {stats.totalEnergy % 100 === 0 ? 100 : 100 - (stats.totalEnergy % 100)} pts
+            
+            <View style={styles.divider} />
+            
+            <View style={styles.completionSection}>
+              <View style={styles.completionHeader}>
+                <Text style={styles.statLabel}>承诺完成率</Text>
+                <Text style={styles.completionRatio}>
+                  {stats.completedCommitments}/{stats.totalCommitments}
                 </Text>
-              )}
-            </Text>
+              </View>
+              
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      width: stats.totalCommitments > 0 
+                        ? `${(stats.completedCommitments / stats.totalCommitments) * 100}%` 
+                        : '0%',
+                      backgroundColor: colors.flow.primary,
+                    }
+                  ]}
+                />
+              </View>
+              
+              <Text style={styles.completionNote}>
+                已完成 {stats.completedCommitments} 个 · 总计 {stats.totalCommitments} 个
+              </Text>
+            </View>
           </Card>
-          
+
           {activeCommitments.map((commitment) => (
             <View key={commitment.id} style={styles.commitmentItem}>
               {commitment.timeOption === 'daily' ? (
@@ -287,7 +292,11 @@ export default function ContractPage() {
                   <View>
                     <Text style={styles.countdownLabel}>每日承诺</Text>
                     <Text style={styles.countdownValue}>
-                      {commitment.streakCount ? `连续 ${commitment.streakCount} 天 🔥` : '每天重复'}
+                      {commitment.lastCompletedDate === new Date().toISOString().split('T')[0]
+                        ? `✅ 今日已完成`
+                        : commitment.streakCount 
+                          ? `连续 ${commitment.streakCount} 天 🔥` 
+                          : '每天重复'}
                     </Text>
                   </View>
                 </View>
@@ -300,7 +309,7 @@ export default function ContractPage() {
                   </View>
                 </View>
               )}
-              
+
               <Card style={styles.commitmentCard}>
                 <View style={styles.commitmentHeader}>
                   <Text style={styles.commitmentLabel}>📝 我的微承诺</Text>
@@ -319,27 +328,34 @@ export default function ContractPage() {
                   </View>
                 </View>
               </Card>
-              
-              <View style={styles.actionButtons}>
-                <Button
-                  title="做到了"
-                  onPress={() => handleDone(commitment.id)}
-                  variant="success"
-                  size="lg"
-                  icon={<Check size={18} color="#FFF" />}
-                  style={styles.doneButton}
-                />
-                <Button
-                  title="没做到"
-                  onPress={() => handleFailClick(commitment.id)}
-                  variant="secondary"
-                  size="lg"
-                  icon={<X size={18} color={colors.white.tertiary} />}
-                />
-              </View>
+
+              {commitment.timeOption === 'daily' && 
+               commitment.lastCompletedDate === new Date().toISOString().split('T')[0] ? (
+                <View style={styles.completedTodayHint}>
+                  <Text style={styles.completedTodayText}>🎉 今日已完成，明天继续加油！</Text>
+                </View>
+              ) : (
+                <View style={styles.actionButtons}>
+                  <Button
+                    title="做到了"
+                    onPress={() => handleDone(commitment.id)}
+                    variant="success"
+                    size="lg"
+                    icon={<Check size={18} color="#FFF" />}
+                    style={styles.doneButton}
+                  />
+                  <Button
+                    title="没做到"
+                    onPress={() => handleFailClick(commitment.id)}
+                    variant="secondary"
+                    size="lg"
+                    icon={<X size={18} color={colors.white.tertiary} />}
+                  />
+                </View>
+              )}
             </View>
           ))}
-          
+
           {activeCommitments.length < 3 && (
             <Button
               title="+ 添加新承诺"
@@ -352,7 +368,7 @@ export default function ContractPage() {
           )}
         </ScrollView>
       )}
-      
+
       {scene === 'empty' && (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIllustration}>
@@ -360,7 +376,7 @@ export default function ContractPage() {
           </View>
           <Text style={styles.emptyTitle}>此刻，是改变的最佳时机</Text>
           <Text style={styles.emptySubtitle}>许下一个微小的承诺，为能量充电</Text>
-          
+
           <Button
             title="创建新承诺"
             onPress={() => setScene('create')}
@@ -371,147 +387,147 @@ export default function ContractPage() {
           />
         </View>
       )}
-      
+
       {scene === 'create' && (
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardView}
         >
           <ScrollView style={styles.content} contentContainerStyle={styles.createContentContainer}>
-          <Text style={styles.createHint}>微小有力量 · 具体可执行</Text>
-          
-          {/* Step 1 */}
-          <Text style={styles.stepTitle}>1 · 我要承诺做什么？</Text>
-          <TextInput
-            style={styles.commitmentInput}
-            value={commitment}
-            onChangeText={setCommitment}
-            placeholder="今晚10点前不看短视频..."
-            placeholderTextColor={colors.white.muted}
-            multiline
-            numberOfLines={3}
-          />
-          <View style={styles.tipCard}>
-            <Text style={styles.tipEmoji}>💡</Text>
-            <Text style={styles.tipText}>试着把"我要减肥"改成"今天不吃夜宵"</Text>
-          </View>
-          <Text style={styles.charCount}>{commitment.length} / 20</Text>
-          
-          {/* Step 2 */}
-          <Text style={styles.stepTitle}>2 · 什么时候完成？</Text>
-          
-          <View style={styles.timeTypeRow}>
-            <TouchableOpacity
-              style={[styles.timeTypeBtn, timeType === 'once' && styles.timeTypeBtnActive]}
-              onPress={() => setTimeType('once')}
-            >
-              <Text style={[styles.timeTypeBtnText, timeType === 'once' && styles.timeTypeBtnTextActive]}>一次性</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.timeTypeBtn, timeType === 'daily' && styles.timeTypeBtnActive]}
-              onPress={() => setTimeType('daily')}
-            >
-              <Text style={[styles.timeTypeBtnText, timeType === 'daily' && styles.timeTypeBtnTextActive]}>每天</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {timeType === 'once' ? (
-          <View style={styles.timePickerContainer}>
-{/* Days Picker */}
-            <View style={styles.pickerColumn}>
-              <Text style={styles.pickerLabel}>天</Text>
-              <WheelPicker
-                data={DAYS}
-                value={selectedDays}
-                onValueChanging={({ item: { value } }: any) => setSelectedDays(value)}
-                keyExtractor={(item: any) => item.value.toString()}
-                renderItem={({ item }: any) => (
-                  <Text style={styles.pickerItemText}>{item.label}</Text>
-                )}
-                itemHeight={40}
-                visibleItemCount={3}
-                enableScrollByTapOnItem
-                overlayItemStyle={styles.pickerOverlay}
-              />
+            <Text style={styles.createHint}>微小有力量 · 具体可执行</Text>
+
+            {/* Step 1 */}
+            <Text style={styles.stepTitle}>1 · 我要承诺做什么？</Text>
+            <TextInput
+              style={styles.commitmentInput}
+              value={commitment}
+              onChangeText={setCommitment}
+              placeholder="今晚10点后不看短视频..."
+              placeholderTextColor={colors.white.muted}
+              multiline
+              numberOfLines={3}
+            />
+            <View style={styles.tipCard}>
+              <Text style={styles.tipEmoji}>💡</Text>
+              <Text style={styles.tipText}>试着把"我要减肥"改成"今天不吃夜宵"</Text>
+            </View>
+            <Text style={styles.charCount}>{commitment.length} / 20</Text>
+
+            {/* Step 2 */}
+            <Text style={styles.stepTitle}>2 · 什么时候完成？</Text>
+
+            <View style={styles.timeTypeRow}>
+              <TouchableOpacity
+                style={[styles.timeTypeBtn, timeType === 'once' && styles.timeTypeBtnActive]}
+                onPress={() => setTimeType('once')}
+              >
+                <Text style={[styles.timeTypeBtnText, timeType === 'once' && styles.timeTypeBtnTextActive]}>一次性</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.timeTypeBtn, timeType === 'daily' && styles.timeTypeBtnActive]}
+                onPress={() => setTimeType('daily')}
+              >
+                <Text style={[styles.timeTypeBtnText, timeType === 'daily' && styles.timeTypeBtnTextActive]}>每天</Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Hours Picker */}
-            <View style={styles.pickerColumn}>
-              <Text style={styles.pickerLabel}>时</Text>
-              <WheelPicker
-                data={HOURS}
-                value={selectedHours}
-                onValueChanging={({ item: { value } }: any) => setSelectedHours(value)}
-                keyExtractor={(item: any) => item.value.toString()}
-                renderItem={({ item }: any) => (
-                  <Text style={styles.pickerItemText}>{item.label}</Text>
-                )}
-                itemHeight={40}
-                visibleItemCount={3}
-                enableScrollByTapOnItem
-                overlayItemStyle={styles.pickerOverlay}
-              />
-            </View>
+            {timeType === 'once' ? (
+              <View style={styles.timePickerContainer}>
+                {/* Days Picker */}
+                <View style={styles.pickerColumn}>
+                  <Text style={styles.pickerLabel}>天</Text>
+                  <WheelPicker
+                    data={DAYS}
+                    value={selectedDays}
+                    onValueChanging={({ item: { value } }: any) => setSelectedDays(value)}
+                    keyExtractor={(item: any) => item.value.toString()}
+                    renderItem={({ item }: any) => (
+                      <Text style={styles.pickerItemText}>{item.label}</Text>
+                    )}
+                    itemHeight={40}
+                    visibleItemCount={3}
+                    enableScrollByTapOnItem
+                    overlayItemStyle={styles.pickerOverlay}
+                  />
+                </View>
 
-            {/* Minutes Picker */}
-            <View style={styles.pickerColumn}>
-              <Text style={styles.pickerLabel}>分</Text>
-              <WheelPicker
-                data={MINUTES}
-                value={selectedMinutes}
-                onValueChanging={({ item: { value } }: any) => setSelectedMinutes(value)}
-                keyExtractor={(item: any) => item.value.toString()}
-                renderItem={({ item }: any) => (
-                  <Text style={styles.pickerItemText}>{item.label}</Text>
-                )}
-                itemHeight={40}
-                visibleItemCount={3}
-                enableScrollByTapOnItem
-                overlayItemStyle={styles.pickerOverlay}
-              />
+                {/* Hours Picker */}
+                <View style={styles.pickerColumn}>
+                  <Text style={styles.pickerLabel}>时</Text>
+                  <WheelPicker
+                    data={HOURS}
+                    value={selectedHours}
+                    onValueChanging={({ item: { value } }: any) => setSelectedHours(value)}
+                    keyExtractor={(item: any) => item.value.toString()}
+                    renderItem={({ item }: any) => (
+                      <Text style={styles.pickerItemText}>{item.label}</Text>
+                    )}
+                    itemHeight={40}
+                    visibleItemCount={3}
+                    enableScrollByTapOnItem
+                    overlayItemStyle={styles.pickerOverlay}
+                  />
+                </View>
+
+                {/* Minutes Picker */}
+                <View style={styles.pickerColumn}>
+                  <Text style={styles.pickerLabel}>分</Text>
+                  <WheelPicker
+                    data={MINUTES}
+                    value={selectedMinutes}
+                    onValueChanging={({ item: { value } }: any) => setSelectedMinutes(value)}
+                    keyExtractor={(item: any) => item.value.toString()}
+                    renderItem={({ item }: any) => (
+                      <Text style={styles.pickerItemText}>{item.label}</Text>
+                    )}
+                    itemHeight={40}
+                    visibleItemCount={3}
+                    enableScrollByTapOnItem
+                    overlayItemStyle={styles.pickerOverlay}
+                  />
+                </View>
+              </View>
+            ) : (
+              <View style={styles.dailyTimeDisplay}>
+                <Text style={styles.dailyTimeText}>每天 · 今日24:00截止</Text>
+              </View>
+            )}
+
+            {/* Step 3 */}
+            <Text style={styles.stepTitle}>3 · 这个承诺为了什么愿景？</Text>
+            <Text style={styles.requiredHint}>* 必选</Text>
+            <View style={styles.visionGrid}>
+              {visions.map((vision) => {
+                const isSelected = selectedVision === vision.id;
+                return (
+                  <TouchableOpacity
+                    key={vision.id}
+                    style={[
+                      styles.visionButton,
+                      isSelected && styles.visionButtonSelected,
+                    ]}
+                    onPress={() => setSelectedVision(vision.id)}
+                  >
+                    {isSelected && (
+                      <View style={styles.visionCheck}>
+                        <Check size={10} color="#FFF" />
+                      </View>
+                    )}
+                    <Text style={styles.visionButtonEmoji}>{vision.emoji}</Text>
+                    <Text style={[
+                      styles.visionButtonLabel,
+                      isSelected && styles.visionButtonLabelSelected,
+                    ]}>
+                      {vision.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          </View>
-          ) : (
-            <View style={styles.dailyTimeDisplay}>
-              <Text style={styles.dailyTimeText}>每天 · 今日24:00截止</Text>
-            </View>
-          )}
-          
-          {/* Step 3 */}
-          <Text style={styles.stepTitle}>3 · 这个承诺为了什么愿景？</Text>
-          <Text style={styles.requiredHint}>* 必选</Text>
-          <View style={styles.visionGrid}>
-            {visions.map((vision) => {
-              const isSelected = selectedVision === vision.id;
-              return (
-                <TouchableOpacity
-                  key={vision.id}
-                  style={[
-                    styles.visionButton,
-                    isSelected && styles.visionButtonSelected,
-                  ]}
-                  onPress={() => setSelectedVision(vision.id)}
-                >
-                  {isSelected && (
-                    <View style={styles.visionCheck}>
-                      <Check size={10} color="#FFF" />
-                    </View>
-                  )}
-                  <Text style={styles.visionButtonEmoji}>{vision.emoji}</Text>
-                  <Text style={[
-                    styles.visionButtonLabel,
-                    isSelected && styles.visionButtonLabelSelected,
-                  ]}>
-                    {vision.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </ScrollView>
+          </ScrollView>
         </KeyboardAvoidingView>
       )}
-      
+
       {scene === 'create' && (
         <View style={styles.createBottomBar}>
           <Button
@@ -524,58 +540,58 @@ export default function ContractPage() {
           />
         </View>
       )}
-      
+
       {/* Fail Modal */}
       <Modal visible={showFailModal} onClose={() => setShowFailModal(false)}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalKeyboardView}
         >
           <Text style={styles.modalTitle}>是什么干扰了你？</Text>
-        
-        <Text style={styles.modalLabel}>💬 请简单描述原因：</Text>
-        <TextInput
-          style={styles.modalInput}
-          value={failReason}
-          onChangeText={setFailReason}
-          placeholder="例如：突然来了个紧急电话..."
-          placeholderTextColor={colors.white.muted}
-          multiline
-          numberOfLines={3}
-        />
-        
-        <Text style={styles.modalLabel}>快速选择：</Text>
-        <View style={styles.failTags}>
-          {failTags.map((t) => (
-            <TouchableOpacity
-              key={t}
-              style={[
-                styles.failTagButton,
-                failTag === t && styles.failTagButtonActive,
-              ]}
-              onPress={() => setFailTag(failTag === t ? null : t)}
-            >
-              <Text style={[
-                styles.failTagText,
-                failTag === t && styles.failTagTextActive,
-              ]}>
-                {t}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        
-        <View style={styles.modalTip}>
-          <Text style={styles.modalTipEmoji}>💡</Text>
-          <Text style={styles.modalTipText}>承认困难也是勇敢的表现。</Text>
-        </View>
-        
-        <Button
-          title="记录并重新开始"
-          onPress={handleFailSubmit}
-          variant="flow"
-          size="lg"
-        />
+
+          <Text style={styles.modalLabel}>💬 请简单描述原因：</Text>
+          <TextInput
+            style={styles.modalInput}
+            value={failReason}
+            onChangeText={setFailReason}
+            placeholder="例如：突然来了个紧急电话..."
+            placeholderTextColor={colors.white.muted}
+            multiline
+            numberOfLines={3}
+          />
+
+          <Text style={styles.modalLabel}>快速选择：</Text>
+          <View style={styles.failTags}>
+            {failTags.map((t) => (
+              <TouchableOpacity
+                key={t}
+                style={[
+                  styles.failTagButton,
+                  failTag === t && styles.failTagButtonActive,
+                ]}
+                onPress={() => setFailTag(failTag === t ? null : t)}
+              >
+                <Text style={[
+                  styles.failTagText,
+                  failTag === t && styles.failTagTextActive,
+                ]}>
+                  {t}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.modalTip}>
+            <Text style={styles.modalTipEmoji}>💡</Text>
+            <Text style={styles.modalTipText}>承认困难也是勇敢的表现。</Text>
+          </View>
+
+          <Button
+            title="记录并重新开始"
+            onPress={handleFailSubmit}
+            variant="flow"
+            size="lg"
+          />
         </KeyboardAvoidingView>
       </Modal>
     </View>
@@ -627,49 +643,58 @@ const styles = StyleSheet.create({
   energyCard: {
     marginBottom: 16,
   },
-  energyHeader: {
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     marginBottom: 12,
   },
-  energyLabel: {
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
     fontSize: 12,
     color: colors.white.muted,
-  },
-  energyValue: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.flow.primary,
-  },
-  streakDisplay: {
-    alignItems: 'flex-end',
+    marginBottom: 4,
   },
   streakValue: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '700',
     color: colors.transform.primary,
   },
-  energyBar: {
-    height: 6,
+  divider: {
+    height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 3,
-    overflow: 'hidden',
+    marginVertical: 12,
   },
-  energyBarFill: {
+  completionSection: {
+  },
+  completionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  completionRatio: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.flow.primary,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressBarFill: {
     height: '100%',
     backgroundColor: colors.flow.primary,
-    borderRadius: 3,
+    borderRadius: 4,
   },
-  energyNote: {
+  completionNote: {
     fontSize: 11,
     color: colors.white.muted,
-    textAlign: 'right',
-    marginTop: 4,
-  },
-  energyNoteNext: {
-    fontSize: 11,
-    color: colors.transform.primary,
-    fontWeight: '600',
+    textAlign: 'center',
   },
   countdownCard: {
     flexDirection: 'row',
@@ -757,6 +782,20 @@ const styles = StyleSheet.create({
   },
   doneButton: {
     flex: 1,
+  },
+  completedTodayHint: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(0, 180, 100, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 200, 120, 0.3)',
+    alignItems: 'center',
+  },
+  completedTodayText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(0, 220, 140, 0.9)',
   },
   addCommitmentButton: {
     marginTop: 16,

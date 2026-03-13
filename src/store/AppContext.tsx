@@ -3,6 +3,28 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { Vision, EnergyRecord, Commitment, UserStats, AiConfig, ENERGY_SCORES } from '@/types';
 import * as Storage from '@/store/storage';
 
+// Helper functions for commitment stats
+const getToday = () => new Date().toISOString().split('T')[0];
+const getYesterday = () => new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+// Calculate new streak based on last activity date
+// Returns: -1 (no change needed), 0 (reset to 1), 1 (increment)
+const calculateNewStreak = (lastActivityDate: string): number => {
+  const today = getToday();
+  const yesterday = getYesterday();
+  
+  if (lastActivityDate === today) {
+    // Already processed today, streak unchanged
+    return -1; // Signal: no change needed
+  } else if (lastActivityDate === yesterday) {
+    // Consecutive day
+    return 1; // Signal: increment streak
+  } else {
+    // Broken streak
+    return 0; // Signal: reset to 1
+  }
+};
+
 interface AppContextType {
   // State
   visions: Vision[];
@@ -29,6 +51,7 @@ interface AppContextType {
   completeCommitment: (id: string) => Promise<void>;
   failCommitment: (id: string, reason?: string, tag?: string) => Promise<void>;
   deleteCommitment: (id: string) => Promise<void>;
+  checkDailyCommitments: () => Promise<void>;
   
   refreshStats: () => Promise<void>;
   updateStats: (updates: Partial<UserStats>) => Promise<void>;
@@ -51,6 +74,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     maxStreak: 0,
     lastRecordDate: '',
     completedCommitments: 0,
+    totalCommitments: 0,
+    commitmentStreak: 0,
+    lastCommitmentActivityDate: '',
+    lastDailyCountDate: '',
   });
   const [hasOnboarded, setHasOnboarded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -176,6 +203,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addCommitment = async (commitment: Omit<Commitment, 'id' | 'createdAt' | 'status'>) => {
     const newCommitment = await Storage.addCommitment(commitment);
     setActiveCommitments(prev => [...prev, newCommitment]);
+    
+    const newTotalCommitments = stats.totalCommitments + 1;
+    await Storage.updateUserStats({ totalCommitments: newTotalCommitments });
+    setStats(prev => ({ ...prev, totalCommitments: newTotalCommitments }));
+    
     return newCommitment;
   };
   
@@ -191,20 +223,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     if (isDaily) {
       const newStreakCount = (commitment.streakCount || 0) + 1;
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(23, 59, 59, 999);
-      const tomorrowDeadline = tomorrow.getTime();
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
       
       await Storage.completeDailyCommitment(id, today, newStreakCount);
-      await Storage.addCommitment({
-        content: commitment.content,
-        visionId: commitment.visionId,
-        timeOption: 'daily',
-        deadline: tomorrowDeadline,
-        lastCompletedDate: today,
-        streakCount: newStreakCount,
-      });
       await refreshActiveCommitments();
     } else {
       await Storage.completeCommitment(id);
@@ -221,18 +243,99 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     
     const newCompletedCount = stats.completedCommitments + 1;
-    await Storage.updateUserStats({ completedCommitments: newCompletedCount });
-    setStats(prev => ({ ...prev, completedCommitments: newCompletedCount }));
+
+    // Update commitment streak
+    const streakResult = calculateNewStreak(stats.lastCommitmentActivityDate);
+    let newCommitmentStreak = stats.commitmentStreak;
+    let newLastActivityDate = stats.lastCommitmentActivityDate;
+
+    if (streakResult === 1) {
+      newCommitmentStreak = stats.commitmentStreak + 1;
+      newLastActivityDate = getToday();
+    } else if (streakResult === 0) {
+      newCommitmentStreak = 1;
+      newLastActivityDate = getToday();
+    }
+    // streakResult === -1 means already processed today, no change
+
+    const statsUpdate = {
+      completedCommitments: newCompletedCount,
+      commitmentStreak: newCommitmentStreak,
+      lastCommitmentActivityDate: newLastActivityDate,
+    };
+
+    await Storage.updateUserStats(statsUpdate);
+    setStats(prev => ({ ...prev, ...statsUpdate }));
   };
   
   const failCommitment = async (id: string, reason?: string, tag?: string) => {
-    await Storage.failCommitment(id, reason, tag);
+    const commitment = activeCommitments.find(c => c.id === id);
+    if (!commitment) {
+      console.warn('Commitment not found:', id);
+      return;
+    }
+    
+    if (commitment.timeOption === 'daily') {
+      await Storage.resetDailyCommitmentStreak(id);
+    } else {
+      await Storage.failCommitment(id, reason, tag);
+    }
     await refreshActiveCommitments();
+    
+    // Update commitment streak (failed commitment also counts as processed)
+    const today = getToday();
+    const streakResult = calculateNewStreak(stats.lastCommitmentActivityDate);
+    let newCommitmentStreak = stats.commitmentStreak;
+    let newLastActivityDate = stats.lastCommitmentActivityDate;
+
+    if (streakResult === 1) {
+      newCommitmentStreak = stats.commitmentStreak + 1;
+      newLastActivityDate = today;
+    } else if (streakResult === 0) {
+      newCommitmentStreak = 1;
+      newLastActivityDate = today;
+    }
+
+    if (streakResult !== -1) {
+      const statsUpdate = {
+        commitmentStreak: newCommitmentStreak,
+        lastCommitmentActivityDate: newLastActivityDate,
+      };
+      
+      await Storage.updateUserStats(statsUpdate);
+      setStats(prev => ({ ...prev, ...statsUpdate }));
+    }
   };
   
   const deleteCommitment = async (id: string) => {
     await Storage.deleteCommitment(id);
     setActiveCommitments(prev => prev.filter(c => c.id !== id));
+  };
+  
+  // Check and update daily commitment count for new day
+  const checkDailyCommitments = async () => {
+    const today = getToday();
+    
+    // Check if already counted today
+    if (stats.lastDailyCountDate === today) {
+      return;
+    }
+    
+    // Check if there are active daily commitments
+    const hasDailyCommitments = activeCommitments.some(c => 
+      c.timeOption === 'daily' && c.status === 'active'
+    );
+    
+    if (hasDailyCommitments) {
+      const newTotalCommitments = stats.totalCommitments + 1;
+      const statsUpdate = {
+        totalCommitments: newTotalCommitments,
+        lastDailyCountDate: today,
+      };
+      
+      await Storage.updateUserStats(statsUpdate);
+      setStats(prev => ({ ...prev, ...statsUpdate }));
+    }
   };
   
   // Stats actions
@@ -285,6 +388,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         completeCommitment,
         failCommitment,
         deleteCommitment,
+        checkDailyCommitments,
         refreshStats,
         updateStats,
         completeOnboarding,
