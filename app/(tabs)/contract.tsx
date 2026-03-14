@@ -552,51 +552,56 @@ export default function ContractPage() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalKeyboardView}
         >
-          <Text style={styles.modalTitle}>是什么干扰了你？</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.modalScrollContent}
+          >
+            <Text style={styles.modalTitle}>是什么干扰了你？</Text>
 
-          <Text style={styles.modalLabel}>💬 请简单描述原因：</Text>
-          <TextInput
-            style={styles.modalInput}
-            value={failReason}
-            onChangeText={setFailReason}
-            placeholder="例如：突然来了个紧急电话..."
-            placeholderTextColor={colors.white.muted}
-            multiline
-            numberOfLines={3}
-          />
+            <Text style={styles.modalLabel}>💬 请简单描述原因：</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={failReason}
+              onChangeText={setFailReason}
+              placeholder="例如：突然来了个紧急电话..."
+              placeholderTextColor={colors.white.muted}
+              multiline
+              numberOfLines={3}
+            />
 
-          <Text style={styles.modalLabel}>快速选择：</Text>
-          <View style={styles.failTags}>
-            {failTags.map((t) => (
-              <TouchableOpacity
-                key={t}
-                style={[
-                  styles.failTagButton,
-                  failTag === t && styles.failTagButtonActive,
-                ]}
-                onPress={() => setFailTag(failTag === t ? null : t)}
-              >
-                <Text style={[
-                  styles.failTagText,
-                  failTag === t && styles.failTagTextActive,
-                ]}>
-                  {t}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+            <Text style={styles.modalLabel}>快速选择：</Text>
+            <View style={styles.failTags}>
+              {failTags.map((t) => (
+                <TouchableOpacity
+                  key={t}
+                  style={[
+                    styles.failTagButton,
+                    failTag === t && styles.failTagButtonActive,
+                  ]}
+                  onPress={() => setFailTag(failTag === t ? null : t)}
+                >
+                  <Text style={[
+                    styles.failTagText,
+                    failTag === t && styles.failTagTextActive,
+                  ]}>
+                    {t}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-          <View style={styles.modalTip}>
-            <Text style={styles.modalTipEmoji}>💡</Text>
-            <Text style={styles.modalTipText}>承认困难也是勇敢的表现。</Text>
-          </View>
+            <View style={styles.modalTip}>
+              <Text style={styles.modalTipEmoji}>💡</Text>
+              <Text style={styles.modalTipText}>承认困难也是勇敢的表现。</Text>
+            </View>
 
-          <Button
-            title="记录并重新开始"
-            onPress={handleFailSubmit}
-            variant="flow"
-            size="lg"
-          />
+            <Button
+              title="记录并重新开始"
+              onPress={handleFailSubmit}
+              variant="flow"
+              size="lg"
+            />
+          </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
     </View>
@@ -611,8 +616,17 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  modalKeyboardView: {
-    flex: 1,
+modalKeyboardView: {
+    flexGrow: 1,
+  },
+  modalScrollContent: {
+    paddingBottom: spacing.xl,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.white.primary,
+    marginBottom: 24,
   },
   header: {
     flexDirection: 'row',
@@ -1043,12 +1057,6 @@ const styles = StyleSheet.create({
   streakText: {
     fontSize: 14,
     color: 'rgba(0, 212, 212, 0.9)',
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.white.primary,
-    marginBottom: 24,
   },
   modalLabel: {
     fontSize: 13,
