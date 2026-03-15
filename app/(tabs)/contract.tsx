@@ -253,9 +253,9 @@ export default function ContractPage() {
                 <Text style={styles.streakValue}>🔥 {stats.commitmentStreak} 天</Text>
               </View>
             </View>
-            
+
             <View style={styles.divider} />
-            
+
             <View style={styles.completionSection}>
               <View style={styles.completionHeader}>
                 <Text style={styles.statLabel}>承诺完成率</Text>
@@ -263,21 +263,21 @@ export default function ContractPage() {
                   {stats.completedCommitments}/{stats.totalCommitments}
                 </Text>
               </View>
-              
+
               <View style={styles.progressBar}>
                 <View
                   style={[
                     styles.progressBarFill,
                     {
-                      width: stats.totalCommitments > 0 
-                        ? `${(stats.completedCommitments / stats.totalCommitments) * 100}%` 
+                      width: stats.totalCommitments > 0
+                        ? `${(stats.completedCommitments / stats.totalCommitments) * 100}%`
                         : '0%',
                       backgroundColor: colors.flow.primary,
                     }
                   ]}
                 />
               </View>
-              
+
               <Text style={styles.completionNote}>
                 已完成 {stats.completedCommitments} 个 · 总计 {stats.totalCommitments} 个
               </Text>
@@ -294,8 +294,8 @@ export default function ContractPage() {
                     <Text style={styles.countdownValue}>
                       {commitment.lastCompletedDate === new Date().toISOString().split('T')[0]
                         ? `✅ 今日已完成`
-                        : commitment.streakCount 
-                          ? `连续 ${commitment.streakCount} 天 🔥` 
+                        : commitment.streakCount
+                          ? `连续 ${commitment.streakCount} 天 🔥`
                           : '每天重复'}
                     </Text>
                   </View>
@@ -329,8 +329,8 @@ export default function ContractPage() {
                 </View>
               </Card>
 
-              {commitment.timeOption === 'daily' && 
-               commitment.lastCompletedDate === new Date().toISOString().split('T')[0] ? (
+              {commitment.timeOption === 'daily' &&
+                commitment.lastCompletedDate === new Date().toISOString().split('T')[0] ? (
                 <View style={styles.completedTodayHint}>
                   <Text style={styles.completedTodayText}>🎉 今日已完成，明天继续加油！</Text>
                 </View>
@@ -416,7 +416,7 @@ export default function ContractPage() {
               <Text style={styles.tipEmoji}>💡</Text>
               <Text style={styles.tipText}>试着把"我要减肥"改成"今天不吃夜宵"</Text>
             </View>
-            <Text style={styles.charCount}>{commitment.length} / 20</Text>
+            <Text style={styles.charCount}>{commitment.length} / 200</Text>
 
             {/* Step 2 */}
             <Text style={styles.stepTitle}>2 · 什么时候完成？</Text>
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-modalKeyboardView: {
+  modalKeyboardView: {
     flexGrow: 1,
   },
   modalScrollContent: {
